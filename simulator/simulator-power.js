@@ -1,137 +1,145 @@
 /* ==========================================================================
-   DrDer Electronic - Power Flow Simulation
-   Calculates voltage and current distribution in the circuit
+   DrDer Electronic - Power Flow Simulation v4.1
+   Fixed: Timer handling, race condition, synchronous flow
    ========================================================================== */
 (function () {
   'use strict';
 
   window.SimPower = {
-    /* ========================================================================
-       Simulate power flow through the circuit
-       Returns Set of component IDs that are energized
-       ======================================================================== */
-    simulate(placedComponents, connections) {
-      const conducting = new Set();
-      const visited = new Set();
-      const voltageMap = new Map();
+    _pendingTimers: [],
 
-      // Find all power sources
-      const sources = placedComponents.filter(c => {
-        const def = window.findComponentDef(c.compId);
-        return def && def.type === 'source';
-      });
+    simulate: function (placedComponents, connections) {
+      var conducting = {};
+      var visited = {};
+      var voltageMap = {};
+      this._pendingTimers = [];
 
-      if (sources.length === 0) return { conducting, voltageMap };
-
-      // Start DFS from each source terminal
-      sources.forEach(source => {
-        const def = window.findComponentDef(source.compId);
-        const voltage = source.properties?.voltage || def.voltage || 12;
-        const terminalCount = def ? def.terminals : 2;
-
-        for (let i = 0; i < terminalCount; i++) {
-          this._dfsPower(source.id, i, voltage, placedComponents, connections, conducting, visited, voltageMap);
+      var sources = [];
+      for (var i = 0; i < placedComponents.length; i++) {
+        var def = window.findComponentDef(placedComponents[i].compId);
+        if (def && def.type === 'source') {
+          sources.push(placedComponents[i]);
         }
-      });
+      }
 
-      return { conducting, voltageMap };
+      if (sources.length === 0) {
+        return { conducting: conducting, voltageMap: voltageMap };
+      }
+
+      for (var s = 0; s < sources.length; s++) {
+        var source = sources[s];
+        var sourceDef = window.findComponentDef(source.compId);
+        var voltage = (source.properties && source.properties.voltage) || (sourceDef ? sourceDef.voltage : 12);
+        var terminalCount = sourceDef ? (sourceDef.terminals || 2) : 2;
+
+        for (var t = 0; t < terminalCount; t++) {
+          this._dfsPower(source.id, t, voltage, placedComponents, connections, conducting, visited, voltageMap);
+        }
+      }
+
+      this._processPendingTimers();
+
+      return { conducting: conducting, voltageMap: voltageMap };
     },
 
-    /* ========================================================================
-       DFS to propagate power
-       ======================================================================== */
-    _dfsPower(compId, fromTerminal, incomingVoltage, placedComponents, connections,
-              conducting, visited, voltageMap) {
+    _dfsPower: function (compId, fromTerminal, incomingVoltage, placedComponents, connections, conducting, visited, voltageMap) {
+      var key = compId + '-' + fromTerminal;
+      if (visited[key]) return;
+      visited[key] = true;
 
-      const key = `${compId}-${fromTerminal}`;
-      if (visited.has(key)) return;
-      visited.add(key);
-
-      const comp = placedComponents.find(c => c.id === compId);
+      var comp = null;
+      for (var i = 0; i < placedComponents.length; i++) {
+        if (placedComponents[i].id === compId) {
+          comp = placedComponents[i];
+          break;
+        }
+      }
       if (!comp) return;
 
-      const def = window.findComponentDef(comp.compId);
+      var def = window.findComponentDef(comp.compId);
       if (!def) return;
 
-      // Check if component blocks current
-      let voltage = incomingVoltage;
-      let allowsThrough = true;
+      var voltage = incomingVoltage;
+      var allowsThrough = true;
+
+      if (!comp.compState) comp.compState = {};
 
       switch (def.type) {
         case 'source':
-          voltage = comp.properties?.voltage || def.voltage || 12;
+          voltage = (comp.properties && comp.properties.voltage) || def.voltage || 12;
           allowsThrough = true;
           break;
 
         case 'switch':
-          if (def.subtype === 'push_no' || def.subtype === 'limit_no' || def.subtype === 'float') {
-            allowsThrough = comp.compState?.closed || comp.compState?.pressed || false;
+          if (def.subtype === 'push_no' || def.subtype === 'limit_no' || def.subtype === 'float' || def.subtype === 'foot') {
+            allowsThrough = comp.compState.closed || comp.compState.pressed || false;
           } else if (def.subtype === 'push_nc' || def.subtype === 'limit_nc' || def.subtype === 'emergency') {
-            allowsThrough = !(comp.compState?.pressed || comp.compState?.activated || false);
-          } else if (def.subtype === 'spst') {
-            allowsThrough = comp.compState?.closed || false;
+            allowsThrough = !(comp.compState.pressed || comp.compState.activated || false);
+          } else if (def.subtype === 'spst' || def.subtype === 'spdt' || def.subtype === 'dpdt') {
+            allowsThrough = comp.compState.closed || false;
           } else {
-            allowsThrough = comp.compState?.closed || false;
+            allowsThrough = comp.compState.closed || false;
           }
           break;
 
         case 'protection':
-          allowsThrough = !(comp.compState?.tripped || false);
+          allowsThrough = !comp.compState.tripped;
           break;
 
         case 'relay':
           if (def.subtype === 'timer_on') {
-            if (comp.compState?.timerStarted && comp.compState?.timerElapsed) {
+            if (comp.compState.timerElapsed) {
               allowsThrough = true;
-            } else if (!comp.compState?.timerStarted) {
-              comp.compState = comp.compState || {};
-              comp.compState.timerStarted = Date.now();
-              const delay = (comp.properties?.delay || def.delay || 5) * 1000;
-              allowsThrough = false;
-              setTimeout(() => {
-                comp.compState.timerElapsed = true;
-              }, delay);
             } else {
+              var self = this;
+              var delay = ((comp.properties && comp.properties.delay) || def.delay || 5) * 1000;
+              this._pendingTimers.push({
+                comp: comp,
+                type: 'timer_on',
+                delay: delay,
+                startTime: Date.now()
+              });
               allowsThrough = false;
             }
           } else if (def.subtype === 'timer_off') {
-            allowsThrough = !(comp.compState?.timerElapsed || false);
+            if (comp.compState.timerElapsed) {
+              allowsThrough = false;
+            } else {
+              allowsThrough = true;
+            }
+          } else if (def.subtype === 'timer_cyclic') {
+            allowsThrough = comp.compState.timerOutput || false;
           } else {
-            allowsThrough = comp.compState?.energized || false;
+            allowsThrough = comp.compState.energized || false;
           }
           break;
 
         case 'contactor':
-          allowsThrough = comp.compState?.energized || false;
+          allowsThrough = comp.compState.energized || false;
           break;
 
         case 'semiconductor':
           if (def.subtype === 'diode' || def.subtype === 'zener' || def.subtype === 'schottky') {
-            // Diode allows current in one direction
             allowsThrough = fromTerminal === 0;
             if (allowsThrough) {
-              const vf = def.vf || 0.7;
+              var vf = def.vf || 0.7;
               voltage = Math.max(0, incomingVoltage - vf);
             }
           } else {
-            allowsThrough = comp.compState?.active || false;
+            allowsThrough = comp.compState.active || false;
           }
           break;
 
         case 'motor':
-          conducting.add(compId);
-          comp.compState = comp.compState || {};
+          conducting[compId] = true;
           comp.compState.active = true;
           allowsThrough = true;
           break;
 
         case 'load':
-          conducting.add(compId);
-          comp.compState = comp.compState || {};
+          conducting[compId] = true;
           comp.compState.active = true;
           allowsThrough = true;
-
-          // LED voltage drop
           if (def.subtype === 'led' || def.subtype === 'rgb_led') {
             voltage = Math.max(0, incomingVoltage - (def.vf || 2));
           }
@@ -142,11 +150,9 @@
           break;
 
         case 'ic':
-          allowsThrough = true;
-          break;
-
         case 'logic':
-          allowsThrough = comp.compState?.output || false;
+        case 'digital':
+          allowsThrough = comp.compState.output || false;
           break;
 
         case 'measurement':
@@ -159,6 +165,7 @@
           break;
 
         case 'terminal':
+        case 'board':
           allowsThrough = true;
           break;
 
@@ -167,73 +174,74 @@
       }
 
       if (allowsThrough) {
-        conducting.add(compId);
-        voltageMap.set(compId, voltage);
-
-        // Mark component as energized
-        comp.compState = comp.compState || {};
+        conducting[compId] = true;
+        voltageMap[compId] = voltage;
         comp.compState.energized = true;
 
-        // Propagate to connected components
-        connections.forEach(conn => {
+        for (var c = 0; c < connections.length; c++) {
+          var conn = connections[c];
           if (conn.fromCompId === compId && conn.fromTerminal !== fromTerminal) {
-            this._dfsPower(conn.toCompId, conn.toTerminal, voltage, placedComponents,
-                          connections, conducting, visited, voltageMap);
+            this._dfsPower(conn.toCompId, conn.toTerminal, voltage, placedComponents, connections, conducting, visited, voltageMap);
           }
           if (conn.toCompId === compId && conn.toTerminal !== fromTerminal) {
-            this._dfsPower(conn.fromCompId, conn.fromTerminal, voltage, placedComponents,
-                          connections, conducting, visited, voltageMap);
+            this._dfsPower(conn.fromCompId, conn.fromTerminal, voltage, placedComponents, connections, conducting, visited, voltageMap);
           }
-        });
+        }
       }
     },
 
-    /* ========================================================================
-       Reset all component states
-       ======================================================================== */
-    resetAll(placedComponents) {
-      placedComponents.forEach(comp => {
-        comp.compState = comp.compState || {};
+    _processPendingTimers: function () {
+      var now = Date.now();
+      for (var i = 0; i < this._pendingTimers.length; i++) {
+        var timer = this._pendingTimers[i];
+        if (timer.type === 'timer_on') {
+          if (now - timer.startTime >= timer.delay) {
+            timer.comp.compState.timerElapsed = true;
+          }
+        }
+      }
+      this._pendingTimers = [];
+    },
+
+    resetAll: function (placedComponents) {
+      for (var i = 0; i < placedComponents.length; i++) {
+        var comp = placedComponents[i];
+        if (!comp.compState) comp.compState = {};
         comp.compState.active = false;
         comp.compState.energized = false;
         comp.compState.timerStarted = false;
         comp.compState.timerElapsed = false;
         comp.compState.output = false;
-
+        comp.compState.timerOutput = false;
+        comp.compState.activated = false;
         if (comp.el) {
           comp.el.classList.remove('simulating', 'energized', 'fault');
         }
-      });
+      }
+      this._pendingTimers = [];
     },
 
-    /* ========================================================================
-       Apply visual feedback based on simulation result
-       ======================================================================== */
-    applyVisualFeedback(placedComponents, conducting) {
-      placedComponents.forEach(comp => {
-        if (!comp.el) return;
-
-        const def = window.findComponentDef(comp.compId);
-
-        if (conducting.has(comp.id)) {
+    applyVisualFeedback: function (placedComponents, conducting) {
+      for (var i = 0; i < placedComponents.length; i++) {
+        var comp = placedComponents[i];
+        if (!comp.el) continue;
+        var def = window.findComponentDef(comp.compId);
+        if (conducting[comp.id]) {
           if (def && (def.type === 'load' || def.type === 'motor')) {
             comp.el.classList.add('simulating');
           } else if (def && (def.type === 'relay' || def.type === 'contactor')) {
             comp.el.classList.add('energized');
           }
         }
-      });
+      }
     },
 
-    /* ========================================================================
-       Clear visual feedback
-       ======================================================================== */
-    clearVisualFeedback(placedComponents) {
-      placedComponents.forEach(comp => {
-        if (comp.el) {
-          comp.el.classList.remove('simulating', 'energized', 'fault');
+    clearVisualFeedback: function (placedComponents) {
+      for (var i = 0; i < placedComponents.length; i++) {
+        if (placedComponents[i].el) {
+          placedComponents[i].el.classList.remove('simulating', 'energized', 'fault');
         }
-      });
+      }
     }
   };
 })();
