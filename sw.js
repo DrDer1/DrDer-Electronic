@@ -1,11 +1,11 @@
 /* ==========================================================================
-   DrDer Electronic - Service Worker
+   DrDer Electronic - Service Worker v3.0
    Cache Strategy: Cache First with Network Update
-   Version: 2.0.0
+   Supports all simulator files for full offline operation
    ========================================================================== */
 
-const CACHE_NAME = 'drder-electronic-v2.0.0';
-const RUNTIME_CACHE = 'drder-runtime-v2.0.0';
+const CACHE_NAME = 'drder-electronic-v3.0.0';
+const RUNTIME_CACHE = 'drder-runtime-v3.0.0';
 
 const PRECACHE_ASSETS = [
   './',
@@ -15,19 +15,28 @@ const PRECACHE_ASSETS = [
   './data.js',
   './quiz-data.js',
   './quiz.js',
-  './simulator.js',
   './manifest.json',
   './192.png',
-  './512.png'
+  './512.png',
+  './simulator/simulator.css',
+  './simulator/simulator.js',
+  './simulator/simulator-ui.js',
+  './simulator/simulator-engine.js',
+  './simulator/simulator-components.js',
+  './simulator/simulator-wires.js',
+  './simulator/simulator-canvas.js',
+  './simulator/simulator-selection.js',
+  './simulator/simulator-drag.js',
+  './simulator/simulator-properties.js',
+  './simulator/simulator-validation.js',
+  './simulator/simulator-power.js',
+  './simulator/simulator-project.js',
+  './simulator/simulator-history.js',
+  './simulator/simulator-library.js',
+  './simulator/simulator-utils.js'
 ];
 
-const CACHE_STRATEGIES = {
-  CACHE_FIRST: 'cache-first',
-  NETWORK_FIRST: 'network-first',
-  STALE_WHILE_REVALIDATE: 'stale-while-revalidate'
-};
-
-/* ========== Install ========== */
+/* ========== Install Event ========== */
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 
@@ -37,18 +46,18 @@ self.addEventListener('install', (event) => {
         return Promise.allSettled(
           PRECACHE_ASSETS.map((asset) =>
             cache.add(asset).catch((err) => {
-              console.warn(`[SW] Failed to cache: ${asset}`, err.message);
+              console.warn('[SW] Failed to cache:', asset, err.message);
             })
           )
         );
       })
       .then(() => {
-        console.log('[SW] Installation complete');
+        console.log('[SW] Installation complete -', PRECACHE_ASSETS.length, 'assets');
       })
   );
 });
 
-/* ========== Activate ========== */
+/* ========== Activate Event ========== */
 self.addEventListener('activate', (event) => {
   const validCaches = [CACHE_NAME, RUNTIME_CACHE];
 
@@ -71,20 +80,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/* ========== Fetch ========== */
+/* ========== Fetch Event ========== */
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
 
   if (request.method !== 'GET') return;
 
-  if (!url.origin.includes(self.location.origin)) {
-    return;
-  }
+  const url = new URL(request.url);
 
-  if (url.pathname.includes('sockjs') || url.pathname.includes('hot-update')) {
-    return;
-  }
+  if (!url.origin.includes(self.location.origin)) return;
 
   event.respondWith(handleFetch(request));
 });
@@ -94,22 +98,24 @@ async function handleFetch(request) {
     const cachedResponse = await caches.match(request);
 
     if (cachedResponse) {
-      updateCacheInBackground(request, RUNTIME_CACHE);
+      updateCacheInBackground(request);
       return cachedResponse;
     }
 
-    const networkResponse = await fetch(request, { mode: 'cors', credentials: 'same-origin' });
+    const networkResponse = await fetch(request);
 
     if (networkResponse && networkResponse.ok) {
-      const responseClone = networkResponse.clone();
       const cache = await caches.open(RUNTIME_CACHE);
-      await cache.put(request, responseClone);
+      cache.put(request, networkResponse.clone());
     }
 
     return networkResponse;
   } catch (error) {
     const cachedResponse = await caches.match(request);
-    if (cachedResponse) return cachedResponse;
+
+    if (cachedResponse) {
+      return cachedResponse;
+    }
 
     if (request.headers.get('accept') && request.headers.get('accept').includes('text/html')) {
       return caches.match('./index.html');
@@ -128,15 +134,16 @@ async function handleFetch(request) {
   }
 }
 
-async function updateCacheInBackground(request, cacheName) {
+async function updateCacheInBackground(request) {
   try {
-    const cache = await caches.open(cacheName);
-    const response = await fetch(request, { mode: 'cors', credentials: 'same-origin' });
+    const cache = await caches.open(RUNTIME_CACHE);
+    const response = await fetch(request);
 
     if (response && response.ok) {
       await cache.put(request, response);
     }
   } catch (error) {
+    // Silently fail - background update
   }
 }
 
@@ -150,12 +157,14 @@ self.addEventListener('message', (event) => {
     caches.keys().then((names) => {
       return Promise.all(names.map((name) => caches.delete(name)));
     }).then(() => {
-      event.ports[0]?.postMessage({ success: true });
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ success: true });
+      }
     });
   }
 });
 
-/* ========== Push Notification (Ready) ========== */
+/* ========== Push Notification ========== */
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'DrDer Electronic';
@@ -181,7 +190,7 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clients) => {
-      const url = event.notification.data?.url || './';
+      const url = event.notification.data && event.notification.data.url || './';
 
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
