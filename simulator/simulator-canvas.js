@@ -1,6 +1,6 @@
 /* ==========================================================================
-   DrDer Electronic - Simulator Canvas
-   Manages the drawing area, grid, zoom, pan, and coordinate system
+   DrDer Electronic - Simulator Canvas v4.0
+   Manages drawing area, grid, zoom, pan, and coordinate system
    ========================================================================== */
 (function () {
   'use strict';
@@ -10,8 +10,7 @@
     _svgGrid: null,
     _svgWires: null,
     _placeholder: null,
-    _container: null,
-    _state: null,
+    _canvasRect: null,
     _gridSize: 20,
     _snapToGrid: true,
     _zoomLevel: 1,
@@ -22,10 +21,9 @@
     _panStartY: 0,
     _gridSizes: [10, 20, 40, 50],
     _currentGridIndex: 1,
-    _onMouseDown: null,
-    _onMouseMove: null,
-    _onMouseUp: null,
-    _onWheel: null,
+    _onMouseDownCallback: null,
+    _onMouseMoveCallback: null,
+    _onMouseUpCallback: null,
     _boundMouseDown: null,
     _boundMouseMove: null,
     _boundMouseUp: null,
@@ -34,67 +32,78 @@
     /* ========================================================================
        Initialize
        ======================================================================== */
-    init(canvasId, state) {
+    init: function (canvasId, state) {
       this._canvas = document.getElementById(canvasId);
-      this._container = this._canvas ? this._canvas.parentElement : null;
+      if (!this._canvas) {
+        console.error('SimCanvas: Canvas element "' + canvasId + '" not found');
+        return;
+      }
+
       this._svgGrid = document.getElementById('canvasGridSvg');
       this._svgWires = document.getElementById('canvasWiresSvg');
       this._placeholder = document.getElementById('canvasPlaceholder');
-      this._state = state;
-
-      if (!this._canvas) {
-        console.error('SimCanvas: Canvas element not found');
-        return;
-      }
 
       this._canvas.setAttribute('tabindex', '0');
       this._canvas.focus();
 
       this._updateGridPattern();
       this._setupEventListeners();
+      this._updateCanvasRect();
       this._updatePlaceholder();
-
-      window.addEventListener('resize', () => {
-        this._updateCanvasRect();
-        if (this._onMouseMove) this._onMouseMove({ clientX: 0, clientY: 0 });
-      });
     },
 
     /* ========================================================================
-       Event Listeners
+       Destroy - Remove all event listeners
        ======================================================================== */
-    _setupEventListeners() {
-      this._boundMouseDown = this._handleMouseDown.bind(this);
-      this._boundMouseMove = this._handleMouseMove.bind(this);
-      this._boundMouseUp = this._handleMouseUp.bind(this);
-      this._boundWheel = this._handleWheel.bind(this);
+    destroy: function () {
+      if (!this._canvas) return;
+
+      if (this._boundMouseDown) {
+        this._canvas.removeEventListener('mousedown', this._boundMouseDown);
+      }
+      if (this._boundMouseMove) {
+        this._canvas.removeEventListener('mousemove', this._boundMouseMove);
+      }
+      if (this._boundMouseUp) {
+        this._canvas.removeEventListener('mouseup', this._boundMouseUp);
+        this._canvas.removeEventListener('mouseleave', this._boundMouseUp);
+      }
+      if (this._boundWheel) {
+        this._canvas.removeEventListener('wheel', this._boundWheel);
+      }
+
+      this._onMouseDownCallback = null;
+      this._onMouseMoveCallback = null;
+      this._onMouseUpCallback = null;
+    },
+
+    /* ========================================================================
+       Event Listeners Setup
+       ======================================================================== */
+    _setupEventListeners: function () {
+      var self = this;
+
+      this._boundMouseDown = function (e) { self._handleMouseDown(e); };
+      this._boundMouseMove = function (e) { self._handleMouseMove(e); };
+      this._boundMouseUp = function (e) { self._handleMouseUp(e); };
+      this._boundWheel = function (e) { self._handleWheel(e); };
 
       this._canvas.addEventListener('mousedown', this._boundMouseDown);
       this._canvas.addEventListener('mousemove', this._boundMouseMove);
       this._canvas.addEventListener('mouseup', this._boundMouseUp);
       this._canvas.addEventListener('mouseleave', this._boundMouseUp);
       this._canvas.addEventListener('wheel', this._boundWheel, { passive: false });
-      this._canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+      this._canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-      this._canvas.addEventListener('touchstart', this._handleTouchStart.bind(this), { passive: false });
-      this._canvas.addEventListener('touchmove', this._handleTouchMove.bind(this), { passive: false });
-      this._canvas.addEventListener('touchend', this._handleTouchEnd.bind(this));
-    },
-
-    destroy() {
-      if (this._canvas) {
-        this._canvas.removeEventListener('mousedown', this._boundMouseDown);
-        this._canvas.removeEventListener('mousemove', this._boundMouseMove);
-        this._canvas.removeEventListener('mouseup', this._boundMouseUp);
-        this._canvas.removeEventListener('mouseleave', this._boundMouseUp);
-        this._canvas.removeEventListener('wheel', this._boundWheel);
-      }
+      this._canvas.addEventListener('touchstart', function (e) { self._handleTouchStart(e); }, { passive: false });
+      this._canvas.addEventListener('touchmove', function (e) { self._handleTouchMove(e); }, { passive: false });
+      this._canvas.addEventListener('touchend', function (e) { self._handleTouchEnd(e); });
     },
 
     /* ========================================================================
-       Mouse/Touch Event Handlers
+       Mouse Handlers
        ======================================================================== */
-    _handleMouseDown(e) {
+    _handleMouseDown: function (e) {
       this._updateCanvasRect();
 
       if (e.button === 1 || (e.button === 0 && e.altKey)) {
@@ -106,12 +115,12 @@
         return;
       }
 
-      if (this._onMouseDown) {
-        this._onMouseDown(e);
+      if (this._onMouseDownCallback) {
+        this._onMouseDownCallback(e);
       }
     },
 
-    _handleMouseMove(e) {
+    _handleMouseMove: function (e) {
       if (this._isPanning) {
         this._panOffsetX = e.clientX - this._panStartX;
         this._panOffsetY = e.clientY - this._panStartY;
@@ -119,34 +128,36 @@
         return;
       }
 
-      if (this._onMouseMove) {
-        this._onMouseMove(e);
+      if (this._onMouseMoveCallback) {
+        this._onMouseMoveCallback(e);
       }
     },
 
-    _handleMouseUp(e) {
+    _handleMouseUp: function (e) {
       if (this._isPanning) {
         this._isPanning = false;
         this._canvas.style.cursor = '';
         return;
       }
 
-      if (this._onMouseUp) {
-        this._onMouseUp(e);
+      if (this._onMouseUpCallback) {
+        this._onMouseUpCallback(e);
       }
     },
 
-    _handleWheel(e) {
+    _handleWheel: function (e) {
       e.preventDefault();
       this._updateCanvasRect();
 
-      const delta = e.deltaY > 0 ? -0.08 : 0.08;
-      const newZoom = Math.max(0.2, Math.min(5, this._zoomLevel + delta));
+      if (!this._canvasRect) return;
 
-      const mx = e.clientX - this._canvasRect.left;
-      const my = e.clientY - this._canvasRect.top;
-      const wx = (mx - this._panOffsetX) / this._zoomLevel;
-      const wy = (my - this._panOffsetY) / this._zoomLevel;
+      var delta = e.deltaY > 0 ? -0.08 : 0.08;
+      var newZoom = Math.max(0.2, Math.min(5, this._zoomLevel + delta));
+
+      var mx = e.clientX - this._canvasRect.left;
+      var my = e.clientY - this._canvasRect.top;
+      var wx = (mx - this._panOffsetX) / this._zoomLevel;
+      var wy = (my - this._panOffsetY) / this._zoomLevel;
 
       this._zoomLevel = newZoom;
       this._panOffsetX = mx - wx * this._zoomLevel;
@@ -156,19 +167,22 @@
       this._updateStatusBar();
     },
 
-    _handleTouchStart(e) {
+    /* ========================================================================
+       Touch Handlers
+       ======================================================================== */
+    _handleTouchStart: function (e) {
       if (e.touches.length === 2) {
         e.preventDefault();
         return;
       }
-      if (e.touches.length === 1 && this._onMouseDown) {
-        const t = e.touches[0];
-        this._onMouseDown({
+      if (e.touches.length === 1 && this._onMouseDownCallback) {
+        var t = e.touches[0];
+        this._onMouseDownCallback({
           button: 0,
           clientX: t.clientX,
           clientY: t.clientY,
           target: document.elementFromPoint(t.clientX, t.clientY),
-          preventDefault: () => {},
+          preventDefault: function () {},
           shiftKey: false,
           ctrlKey: false,
           metaKey: false
@@ -176,37 +190,36 @@
       }
     },
 
-    _handleTouchMove(e) {
-      if (e.touches.length === 1 && this._onMouseMove) {
-        const t = e.touches[0];
-        this._onMouseMove({ clientX: t.clientX, clientY: t.clientY });
+    _handleTouchMove: function (e) {
+      if (e.touches.length === 1 && this._onMouseMoveCallback) {
+        var t = e.touches[0];
+        this._onMouseMoveCallback({ clientX: t.clientX, clientY: t.clientY });
       }
     },
 
-    _handleTouchEnd(e) {
-      if (this._onMouseUp) {
-        this._onMouseUp({});
+    _handleTouchEnd: function () {
+      if (this._onMouseUpCallback) {
+        this._onMouseUpCallback({});
       }
     },
 
     /* ========================================================================
-       Event Registration
+       Callback Registration
        ======================================================================== */
-    onMouseDown(callback) { this._onMouseDown = callback; },
-    onMouseMove(callback) { this._onMouseMove = callback; },
-    onMouseUp(callback) { this._onMouseUp = callback; },
-    onWheel(callback) { this._onWheel = callback; },
+    onMouseDown: function (callback) { this._onMouseDownCallback = callback; },
+    onMouseMove: function (callback) { this._onMouseMoveCallback = callback; },
+    onMouseUp: function (callback) { this._onMouseUpCallback = callback; },
 
     /* ========================================================================
        Coordinate System
        ======================================================================== */
-    _updateCanvasRect() {
+    _updateCanvasRect: function () {
       if (this._canvas) {
         this._canvasRect = this._canvas.getBoundingClientRect();
       }
     },
 
-    screenToWorld(screenX, screenY) {
+    screenToWorld: function (screenX, screenY) {
       this._updateCanvasRect();
       if (!this._canvasRect) return { x: 0, y: 0 };
 
@@ -216,18 +229,8 @@
       };
     },
 
-    worldToScreen(worldX, worldY) {
-      this._updateCanvasRect();
-      if (!this._canvasRect) return { x: 0, y: 0 };
-
-      return {
-        x: worldX * this._zoomLevel + this._panOffsetX + this._canvasRect.left,
-        y: worldY * this._zoomLevel + this._panOffsetY + this._canvasRect.top
-      };
-    },
-
-    snapPosition(x, y) {
-      if (!this._snapToGrid) return { x, y };
+    snapPosition: function (x, y) {
+      if (!this._snapToGrid) return { x: x, y: y };
       return {
         x: Math.round(x / this._gridSize) * this._gridSize,
         y: Math.round(y / this._gridSize) * this._gridSize
@@ -237,79 +240,89 @@
     /* ========================================================================
        Transform
        ======================================================================== */
-    _applyTransform() {
-      const t = `translate(${this._panOffsetX}px, ${this._panOffsetY}px) scale(${this._zoomLevel})`;
+    _applyTransform: function () {
+      var t = 'translate(' + this._panOffsetX + 'px, ' + this._panOffsetY + 'px) scale(' + this._zoomLevel + ')';
 
       if (this._canvas) {
-        this._canvas.querySelectorAll('.sim-component').forEach(el => {
-          el.style.transform = t;
-        });
-        this._canvas.querySelectorAll('.sim-terminal').forEach(el => {
-          el.style.transform = `translate(-50%,-50%) ${t}`;
-        });
+        var components = this._canvas.querySelectorAll('.sim-component');
+        for (var i = 0; i < components.length; i++) {
+          components[i].style.transform = t;
+        }
+
+        var terminals = this._canvas.querySelectorAll('.sim-terminal');
+        for (var j = 0; j < terminals.length; j++) {
+          terminals[j].style.transform = 'translate(-50%,-50%) ' + t;
+        }
       }
 
       this._updateStatusBar();
     },
 
-    applyTransformToElement(el) {
-      const t = `translate(${this._panOffsetX}px, ${this._panOffsetY}px) scale(${this._zoomLevel})`;
-      if (el) el.style.transform = t;
+    applyTransformToElement: function (el) {
+      if (el) {
+        var t = 'translate(' + this._panOffsetX + 'px, ' + this._panOffsetY + 'px) scale(' + this._zoomLevel + ')';
+        el.style.transform = t;
+      }
     },
 
     /* ========================================================================
        Grid System
        ======================================================================== */
-    getGridSize() { return this._gridSize; },
+    getGridSize: function () { return this._gridSize; },
+    isSnapEnabled: function () { return this._snapToGrid; },
 
-    isSnapEnabled() { return this._snapToGrid; },
-
-    toggleSnap() {
+    toggleSnap: function () {
       this._snapToGrid = !this._snapToGrid;
-      const btn = document.getElementById('simBtnSnap');
-      if (btn) btn.classList.toggle('active', this._snapToGrid);
+      var btn = document.getElementById('simBtnSnap');
+      if (btn) {
+        if (this._snapToGrid) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      }
       this._updateStatusBar();
     },
 
-    cycleGridSize() {
+    cycleGridSize: function () {
       this._currentGridIndex = (this._currentGridIndex + 1) % this._gridSizes.length;
       this._gridSize = this._gridSizes[this._currentGridIndex];
       this._updateGridPattern();
-      const btn = document.getElementById('simBtnGridSize');
-      if (btn) btn.textContent = `${this._gridSize}px`;
+      var btn = document.getElementById('simBtnGridSize');
+      if (btn) btn.textContent = this._gridSize + 'px';
       this._updateStatusBar();
     },
 
-    _updateGridPattern() {
-      const pattern = document.getElementById('gridPattern');
+    _updateGridPattern: function () {
+      var pattern = document.getElementById('gridPattern');
       if (!pattern) return;
 
       pattern.setAttribute('width', this._gridSize);
       pattern.setAttribute('height', this._gridSize);
 
-      const paths = pattern.querySelectorAll('path');
+      var paths = pattern.querySelectorAll('path');
       if (paths.length >= 2) {
-        paths[0].setAttribute('d', `M ${this._gridSize} 0 L 0 0 0 ${this._gridSize}`);
-        paths[1].setAttribute('d', `M ${this._gridSize * 5} 0 L 0 0 0 ${this._gridSize * 5}`);
+        paths[0].setAttribute('d', 'M ' + this._gridSize + ' 0 L 0 0 0 ' + this._gridSize);
+        paths[1].setAttribute('d', 'M ' + (this._gridSize * 5) + ' 0 L 0 0 0 ' + (this._gridSize * 5));
       }
     },
 
     /* ========================================================================
        Zoom Controls
        ======================================================================== */
-    zoomIn() {
+    zoomIn: function () {
       this._zoomLevel = Math.min(5, this._zoomLevel + 0.2);
       this._applyTransform();
       this._updateStatusBar();
     },
 
-    zoomOut() {
+    zoomOut: function () {
       this._zoomLevel = Math.max(0.2, this._zoomLevel - 0.2);
       this._applyTransform();
       this._updateStatusBar();
     },
 
-    zoomToFit(components) {
+    zoomToFit: function (components) {
       if (!components || components.length === 0) {
         this._zoomLevel = 1;
         this._panOffsetX = 0;
@@ -319,34 +332,43 @@
         return;
       }
 
-      const canvas = this._canvas;
+      var canvas = this._canvas;
       if (!canvas) return;
 
-      const cw = canvas.clientWidth;
-      const ch = canvas.clientHeight;
-      const minX = Math.min(...components.map(c => c.x));
-      const minY = Math.min(...components.map(c => c.y));
-      const maxX = Math.max(...components.map(c => c.x + (c.el ? c.el.offsetWidth : 100)));
-      const maxY = Math.max(...components.map(c => c.y + (c.el ? c.el.offsetHeight : 60)));
-      const ctw = maxX - minX + 80;
-      const cth = maxY - minY + 80;
+      var cw = canvas.clientWidth;
+      var ch = canvas.clientHeight;
 
-      this._zoomLevel = Math.min(2, Math.max(0.3, Math.min(cw / ctw, ch / cth)));
-      this._panOffsetX = (cw / 2) - (minX + ctw / 2) * this._zoomLevel;
-      this._panOffsetY = (ch / 2) - (minY + cth / 2) * this._zoomLevel;
+      var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+      for (var i = 0; i < components.length; i++) {
+        var c = components[i];
+        if (c.x < minX) minX = c.x;
+        if (c.y < minY) minY = c.y;
+        var right = c.x + (c.el ? c.el.offsetWidth : 100);
+        var bottom = c.y + (c.el ? c.el.offsetHeight : 60);
+        if (right > maxX) maxX = right;
+        if (bottom > maxY) maxY = bottom;
+      }
+
+      var contentW = maxX - minX + 80;
+      var contentH = maxY - minY + 80;
+
+      this._zoomLevel = Math.min(2, Math.max(0.3, Math.min(cw / contentW, ch / contentH)));
+      this._panOffsetX = (cw / 2) - (minX + contentW / 2) * this._zoomLevel;
+      this._panOffsetY = (ch / 2) - (minY + contentH / 2) * this._zoomLevel;
 
       this._applyTransform();
       this._updateStatusBar();
     },
 
-    getZoomLevel() { return this._zoomLevel; },
+    getZoomLevel: function () { return this._zoomLevel; },
 
     /* ========================================================================
        Placeholder
        ======================================================================== */
-    _updatePlaceholder() { this.showPlaceholder(true); },
+    _updatePlaceholder: function () { this.showPlaceholder(true); },
 
-    showPlaceholder(show) {
+    showPlaceholder: function (show) {
       if (this._placeholder) {
         this._placeholder.style.display = show ? '' : 'none';
       }
@@ -355,38 +377,35 @@
     /* ========================================================================
        Status Bar
        ======================================================================== */
-    _updateStatusBar() {
-      const zoomEl = document.getElementById('simStatusZoom');
-      const snapEl = document.getElementById('simStatusSnap');
-      const gridEl = document.getElementById('simStatusGrid');
+    _updateStatusBar: function () {
+      var zoomEl = document.getElementById('simStatusZoom');
+      var snapEl = document.getElementById('simStatusSnap');
+      var gridEl = document.getElementById('simStatusGrid');
 
-      if (zoomEl) zoomEl.textContent = `تكبير: ${Math.round(this._zoomLevel * 100)}%`;
+      if (zoomEl) zoomEl.textContent = 'تكبير: ' + Math.round(this._zoomLevel * 100) + '%';
       if (snapEl) snapEl.textContent = this._snapToGrid ? '✅ التصاق' : '❌ حر';
-      if (gridEl) gridEl.textContent = `شبكة: ${this._gridSize}px`;
+      if (gridEl) gridEl.textContent = 'شبكة: ' + this._gridSize + 'px';
     },
 
-    updateComponentCount(count) {
-      const el = document.getElementById('simStatusComponents');
-      if (el) el.textContent = `العناصر: ${count}`;
+    updateComponentCount: function (count) {
+      var el = document.getElementById('simStatusComponents');
+      if (el) el.textContent = 'العناصر: ' + count;
     },
 
-    updateConnectionCount(count) {
-      const el = document.getElementById('simStatusConnections');
-      if (el) el.textContent = `التوصيلات: ${count}`;
+    updateConnectionCount: function (count) {
+      var el = document.getElementById('simStatusConnections');
+      if (el) el.textContent = 'التوصيلات: ' + count;
     },
 
-    updatePositionInfo(x, y) {
-      const el = document.getElementById('simStatusPosition');
-      if (el) el.textContent = `x: ${Math.round(x)}, y: ${Math.round(y)}`;
+    updatePositionInfo: function (x, y) {
+      var el = document.getElementById('simStatusPosition');
+      if (el) el.textContent = 'x: ' + Math.round(x) + ', y: ' + Math.round(y);
     },
 
     /* ========================================================================
-       Canvas Element
+       Getters
        ======================================================================== */
-    getCanvas() { return this._canvas; },
-
-    getSVGWires() { return this._svgWires; },
-
-    getContainer() { return this._container; }
+    getCanvas: function () { return this._canvas; },
+    getSVGWires: function () { return this._svgWires; }
   };
 })();
