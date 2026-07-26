@@ -1,6 +1,6 @@
 /* ==========================================================================
-   DrDer Electronic - Simulator Drag & Drop
-   Handles dragging components on the canvas
+   DrDer Electronic - Simulator Drag & Drop v5.0
+   Fixed: Snap only on drop, not during drag
    ========================================================================== */
 (function () {
   'use strict';
@@ -17,18 +17,23 @@
     _onDragMove: null,
     _onDragEnd: null,
 
-    /* ========================================================================
-       Initialize
-       ======================================================================== */
-    init(state, canvas) {
+    /**
+     * Initialize drag system
+     * @param {Object} state - Simulator state
+     * @param {HTMLElement} canvas - Canvas element
+     */
+    init: function (state, canvas) {
       this._state = state;
       this._canvas = canvas;
     },
 
-    /* ========================================================================
-       Start dragging a component
-       ======================================================================== */
-    startDrag(component, clientX, clientY) {
+    /**
+     * Start dragging a component
+     * @param {Object} component - Component to drag
+     * @param {number} clientX - Mouse X position
+     * @param {number} clientY - Mouse Y position
+     */
+    startDrag: function (component, clientX, clientY) {
       if (!component || !component.el) return;
 
       this._dragging = {
@@ -50,39 +55,51 @@
       }
     },
 
-    /* ========================================================================
-       Move during drag
-       ======================================================================== */
-    dragMove(clientX, clientY, canvasModule, selectionModule) {
+    /**
+     * Move component during drag
+     * @param {number} clientX - Mouse X position
+     * @param {number} clientY - Mouse Y position
+     * @param {Object} canvasModule - SimCanvas module
+     * @param {Object} selectionModule - SimSelection module
+     */
+    dragMove: function (clientX, clientY, canvasModule, selectionModule) {
       if (!this._dragging) return;
 
-      const dx = (clientX - this._dragStartX) / (canvasModule.getZoomLevel() || 1);
-      const dy = (clientY - this._dragStartY) / (canvasModule.getZoomLevel() || 1);
+      var zoomLevel = canvasModule && canvasModule.getZoomLevel ? canvasModule.getZoomLevel() : 1;
+      var dx = (clientX - this._dragStartX) / zoomLevel;
+      var dy = (clientY - this._dragStartY) / zoomLevel;
 
-      let newX = this._dragCompStartX + dx;
-      let newY = this._dragCompStartY + dy;
+      // حركة حرة بدون Snap أثناء السحب
+      var newX = this._dragCompStartX + dx;
+      var newY = this._dragCompStartY + dy;
 
-      const snapped = canvasModule.snapPosition(newX, newY);
-      newX = Math.max(0, snapped.x);
-      newY = Math.max(0, snapped.y);
+      // منع الخروج من canvas
+      newX = Math.max(0, newX);
+      newY = Math.max(0, newY);
 
-      const moveDx = newX - this._dragCompStartX;
-      const moveDy = newY - this._dragCompStartY;
+      var moveDx = newX - this._dragCompStartX;
+      var moveDy = newY - this._dragCompStartY;
 
-      const idsToMove = [];
-      if (selectionModule && selectionModule.isSelected(this._dragging.id)) {
-        idsToMove.push(...selectionModule.getSelectedIds());
-      } else {
+      // تحديد العناصر المراد تحريكها
+      var idsToMove = [];
+      if (selectionModule && selectionModule.isSelected && selectionModule.isSelected(this._dragging.id)) {
+        idsToMove = selectionModule.getSelectedIds ? selectionModule.getSelectedIds() : [];
+      }
+      if (idsToMove.length === 0) {
         idsToMove.push(this._dragging.id);
       }
 
-      const comps = this._state.placedComponents;
+      var comps = this._state.placedComponents;
+      var self = this;
 
-      idsToMove.forEach(id => {
-        const comp = comps.find(c => c.id === id);
+      idsToMove.forEach(function (id) {
+        var comp = null;
+        for (var i = 0; i < comps.length; i++) {
+          if (comps[i].id === id) { comp = comps[i]; break; }
+        }
         if (!comp || !comp.el) return;
 
-        if (id === this._dragging.id) {
+        if (id === self._dragging.id) {
           comp.x = newX;
           comp.y = newY;
         } else {
@@ -90,8 +107,8 @@
           comp.y += moveDy;
         }
 
-        comp.el.style.left = `${comp.x}px`;
-        comp.el.style.top = `${comp.y}px`;
+        comp.el.style.left = comp.x + 'px';
+        comp.el.style.top = comp.y + 'px';
       });
 
       if (this._onDragMove) {
@@ -99,21 +116,31 @@
       }
     },
 
-    /* ========================================================================
-       End drag
-       ======================================================================== */
-    endDrag() {
+    /**
+     * End dragging and snap to grid
+     * @returns {boolean} Whether component actually moved
+     */
+    endDrag: function (canvasModule) {
       if (!this._dragging) return false;
 
-      const comp = this._dragging.component;
+      var comp = this._dragging.component;
+      var el = this._dragging.el;
 
-      this._dragging.el.style.zIndex = '10';
-      this._dragging.el.style.cursor = 'move';
+      el.style.zIndex = '10';
+      el.style.cursor = 'grab';
 
-      const dx = Math.abs(comp.x - this._dragCompStartX);
-      const dy = Math.abs(comp.y - this._dragCompStartY);
+      // تطبيق Snap عند الإفلات فقط
+      if (canvasModule && canvasModule.isSnapEnabled && canvasModule.isSnapEnabled()) {
+        var snapped = canvasModule.snapPosition(comp.x, comp.y);
+        comp.x = snapped.x;
+        comp.y = snapped.y;
+        el.style.left = comp.x + 'px';
+        el.style.top = comp.y + 'px';
+      }
 
-      const moved = dx > 1 || dy > 1;
+      var dx = Math.abs(comp.x - this._dragCompStartX);
+      var dy = Math.abs(comp.y - this._dragCompStartY);
+      var moved = dx > 1 || dy > 1;
 
       this._dragging = null;
 
@@ -124,28 +151,33 @@
       return moved;
     },
 
-    /* ========================================================================
-       Check if currently dragging
-       ======================================================================== */
-    isDragging() {
+    /**
+     * Check if currently dragging
+     * @returns {boolean}
+     */
+    isDragging: function () {
       return this._dragging !== null;
     },
 
-    getDraggedComponent() {
+    /**
+     * Get currently dragged component
+     * @returns {Object|null}
+     */
+    getDraggedComponent: function () {
       return this._dragging ? this._dragging.component : null;
     },
 
-    /* ========================================================================
-       Event callbacks
-       ======================================================================== */
-    onDragStart(cb) { this._onDragStart = cb; },
-    onDragMove(cb) { this._onDragMove = cb; },
-    onDragEnd(cb) { this._onDragEnd = cb; },
+    /**
+     * Register callbacks
+     */
+    onDragStart: function (cb) { this._onDragStart = cb; },
+    onDragMove: function (cb) { this._onDragMove = cb; },
+    onDragEnd: function (cb) { this._onDragEnd = cb; },
 
-    /* ========================================================================
-       Clear
-       ======================================================================== */
-    clear() {
+    /**
+     * Clear drag state
+     */
+    clear: function () {
       this._dragging = null;
     }
   };
