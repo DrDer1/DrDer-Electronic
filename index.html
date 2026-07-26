@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="description" content="مختبر هندسة كهربائية وإلكترونية متكامل - DrDer Electronic - تعليم، محاكاة، حاسبات واختبارات">
+  <meta name="keywords" content="هندسة كهربائية, إلكترونيات, محاكاة, دوائر, PLC, طاقة شمسية, محركات, تعليم">
+  <meta name="author" content="DrDer Electronic">
+  <meta name="robots" content="index, follow">
+  <meta name="google" content="notranslate">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="DrDer Electronic - مختبر الهندسة الكهربائية">
+  <meta property="og:description" content="مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ar_AR">
+  <meta property="og:site_name" content="DrDer Electronic">
+
+  <!-- Apple Web App -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DrDer">
+
+  <!-- Microsoft -->
+  <meta name="msapplication-TileColor" content="#0d1117">
+  <meta name="application-name" content="DrDer Electronic">
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="./192.png">
+  <link rel="stylesheet" href="./style.css">
+
+  <title>DrDer Electronic - مختبر الهندسة الكهربائية والإلكترونية</title>
+</head>
+<body>
+
+  <!-- ========== Header ========== -->
+  <header class="app-header" id="appHeader" role="banner">
+    <button class="app-logo" data-nav="home" aria-label="الذهاب إلى الصفحة الرئيسية" title="الرئيسية">
+      <span class="logo-icon" aria-hidden="true">⚡</span>
+      <span>DrDer</span>
+    </button>
+
+    <nav class="header-actions" aria-label="إجراءات سريعة">
+      <button class="btn-icon btn-install" id="btnInstall" title="تثبيت التطبيق" aria-label="تثبيت التطبيق على الجهاز" style="display:none;">
+        <span aria-hidden="true">📲</span>
+        <span>تثبيت</span>
+      </button>
+      <button class="btn-icon" data-nav="home" title="الرئيسية" aria-label="الصفحة الرئيسية">
+        <span aria-hidden="true">🏠</span>
+      </button>
+      <button class="btn-icon" data-nav="dictionary" title="القاموس" aria-label="قاموس المصطلحات">
+        <span aria-hidden="true">📖</span>
+      </button>
+      <button class="btn-icon" data-nav="quiz" title="الاختبارات" aria-label="الاختبارات">
+        <span aria-hidden="true">📝</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ========== Main Navigation ========== -->
+  <nav class="main-nav" id="mainNav" role="navigation" aria-label="التنقل الرئيسي">
+    <div class="nav-tabs" id="navTabs" role="tablist">
+      <button class="nav-tab active" data-nav="home" role="tab" aria-selected="true" aria-label="الرئيسية">🏠 الرئيسية</button>
+      <button class="nav-tab" data-nav="simulator" role="tab" aria-selected="false" aria-label="المحاكاة">🔧 المحاكاة</button>
+      <button class="nav-tab" data-nav="calculators" role="tab" aria-selected="false" aria-label="الحاسبات">🧮 الحاسبات</button>
+      <button class="nav-tab" data-nav="quiz" role="tab" aria-selected="false" aria-label="الاختبارات">📝 الاختبارات</button>
+      <button class="nav-tab" data-nav="projects" role="tab" aria-selected="false" aria-label="المشاريع">🛠️ المشاريع</button>
+      <button class="nav-tab" data-nav="library" role="tab" aria-selected="false" aria-label="المكتبة">📚 المكتبة</button>
+      <button class="nav-tab" data-nav="dictionary" role="tab" aria-selected="false" aria-label="القاموس">📖 القاموس</button>
+    </div>
+  </nav>
+
+  <!-- ========== Main Content ========== -->
+  <main class="main-content" id="mainContent" role="main">
+    <section class="page active" id="page-home" aria-label="الصفحة الرئيسية"></section>
+    <section class="page" id="page-category" aria-label="قسم الدروس"></section>
+    <section class="page" id="page-lesson" aria-label="تفاصيل الدرس"></section>
+    <section class="page" id="page-simulator" aria-label="المحاكاة"></section>
+    <section class="page" id="page-calculators" aria-label="الحاسبات الهندسية"></section>
+    <section class="page" id="page-quiz" aria-label="الاختبارات"></section>
+    <section class="page" id="page-projects" aria-label="المشاريع العملية"></section>
+    <section class="page" id="page-library" aria-label="المكتبة"></section>
+    <section class="page" id="page-dictionary" aria-label="قاموس المصطلحات"></section>
+  </main>
+
+  <!-- ========== Calculator Modal Container ========== -->
+  <div id="calcModalContainer" aria-live="polite"></div>
+
+  <!-- ========== Scripts ========== -->
+  <script src="./data.js"></script>
+  <script src="./quiz-data.js"></script>
+  <script src="./simulator.js"></script>
+  <script src="./quiz.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
