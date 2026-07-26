@@ -1,7 +1,7 @@
 /* ==========================================================================
    DrDer Electronic - Service Worker v3.0
    Cache Strategy: Cache First with Network Update
-   Supports all simulator files for full offline operation
+   Full offline support for all application and simulator files
    ========================================================================== */
 
 const CACHE_NAME = 'drder-electronic-v3.0.0';
@@ -51,8 +51,10 @@ self.addEventListener('install', (event) => {
           )
         );
       })
-      .then(() => {
-        console.log('[SW] Installation complete -', PRECACHE_ASSETS.length, 'assets');
+      .then((results) => {
+        const succeeded = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        console.log(`[SW] Installation complete - ${succeeded} cached, ${failed} failed`);
       })
   );
 });
@@ -89,6 +91,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (!url.origin.includes(self.location.origin)) return;
+
+  if (url.pathname.includes('sockjs') || url.pathname.includes('hot-update')) {
+    return;
+  }
 
   event.respondWith(handleFetch(request));
 });
@@ -143,7 +149,7 @@ async function updateCacheInBackground(request) {
       await cache.put(request, response);
     }
   } catch (error) {
-    // Silently fail - background update
+    // Silently fail - background updates are not critical
   }
 }
 
@@ -159,6 +165,23 @@ self.addEventListener('message', (event) => {
     }).then(() => {
       if (event.ports && event.ports[0]) {
         event.ports[0].postMessage({ success: true });
+      }
+    });
+  }
+
+  if (event.data && event.data.action === 'getCacheInfo') {
+    caches.keys().then((names) => {
+      return Promise.all(names.map((name) => {
+        return caches.open(name).then((cache) => {
+          return cache.keys().then((keys) => ({
+            name,
+            count: keys.length
+          }));
+        });
+      }));
+    }).then((info) => {
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ caches: info });
       }
     });
   }
