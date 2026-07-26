@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DrDer Electronic - Advanced Quiz System v2.0
+   DrDer Electronic - Advanced Quiz System v4.0
    Random Questions | Shuffled Options | Detailed Results | Review Suggestions
    ========================================================================== */
 
@@ -8,16 +8,6 @@
 
   /* ========== Constants ========== */
   const QUESTIONS_PER_QUIZ = 10;
-
-  /* ========== State ========== */
-  let questions = [];
-  let currentIndex = 0;
-  let score = 0;
-  let answered = false;
-  let totalQuestions = QUESTIONS_PER_QUIZ;
-  let quizActive = false;
-  let wrongAnswers = [];
-  let answeredQuestions = [];
 
   /* ========== Category Name Mapping ========== */
   const categoryNames = {
@@ -29,6 +19,15 @@
     solar: 'الطاقة الشمسية',
     safety: 'السلامة المهنية'
   };
+
+  /* ========== State ========== */
+  let questions = [];
+  let currentIndex = 0;
+  let score = 0;
+  let answered = false;
+  let totalQuestions = QUESTIONS_PER_QUIZ;
+  let quizActive = false;
+  let wrongAnswers = [];
 
   /* ========== Get HTML ========== */
   function getQuizHTML() {
@@ -42,7 +41,7 @@
           <div class="quiz-progress-fill" id="quizProgressFill" style="width: 0%;"></div>
         </div>
         <div class="quiz-question-card" id="quizQuestionCard">
-          <div class="quiz-category-tag" id="quizCategoryTag"></div>
+          <div class="quiz-category-tag" id="quizCategoryTag" style="display:none;"></div>
           <h3 id="quizQuestionText">جاري تحميل الأسئلة...</h3>
         </div>
         <div class="quiz-options" id="quizOptions"></div>
@@ -59,9 +58,11 @@
 
   /* ========== Initialize ========== */
   function initQuiz() {
-    if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA || QUIZ_DATA.length === 0) {
+    if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA || !Array.isArray(QUIZ_DATA) || QUIZ_DATA.length === 0) {
       const questionText = document.getElementById('quizQuestionText');
-      if (questionText) questionText.textContent = '⚠️ لا توجد أسئلة متاحة حالياً.';
+      if (questionText) {
+        questionText.textContent = '⚠️ لا توجد أسئلة متاحة حالياً. تأكد من تحميل ملف quiz-data.js.';
+      }
       return;
     }
 
@@ -70,8 +71,20 @@
     updateScoreDisplay();
     showQuestion();
 
-    document.getElementById('btnNextQuestion')?.addEventListener('click', handleNextQuestion);
-    document.getElementById('btnRestartQuiz')?.addEventListener('click', restartQuiz);
+    const btnNext = document.getElementById('btnNextQuestion');
+    const btnRestart = document.getElementById('btnRestartQuiz');
+
+    if (btnNext) {
+      const newBtn = btnNext.cloneNode(true);
+      btnNext.parentNode.replaceChild(newBtn, btnNext);
+      newBtn.addEventListener('click', handleNextQuestion);
+    }
+
+    if (btnRestart) {
+      const newBtn = btnRestart.cloneNode(true);
+      btnRestart.parentNode.replaceChild(newBtn, btnRestart);
+      newBtn.addEventListener('click', restartQuiz);
+    }
   }
 
   function resetQuizState() {
@@ -80,7 +93,6 @@
     answered = false;
     quizActive = true;
     wrongAnswers = [];
-    answeredQuestions = [];
   }
 
   function prepareQuestions() {
@@ -106,11 +118,22 @@
     answered = false;
     const question = questions[currentIndex];
 
-    document.getElementById('quizQuestionText').textContent = question.question;
-    document.getElementById('quizQuestionNum').textContent = `السؤال ${currentIndex + 1} / ${totalQuestions}`;
-    document.getElementById('quizProgressFill').style.width = `${(currentIndex / totalQuestions) * 100}%`;
-
+    const questionText = document.getElementById('quizQuestionText');
+    const questionNum = document.getElementById('quizQuestionNum');
+    const progressFill = document.getElementById('quizProgressFill');
     const categoryTag = document.getElementById('quizCategoryTag');
+    const optionsContainer = document.getElementById('quizOptions');
+    const feedback = document.getElementById('quizFeedback');
+    const explanation = document.getElementById('quizExplanation');
+    const btnNext = document.getElementById('btnNextQuestion');
+    const resultDiv = document.getElementById('quizResult');
+    const questionCard = document.getElementById('quizQuestionCard');
+    const btnRestart = document.getElementById('btnRestartQuiz');
+
+    if (questionText) questionText.textContent = question.question;
+    if (questionNum) questionNum.textContent = `السؤال ${currentIndex + 1} / ${totalQuestions}`;
+    if (progressFill) progressFill.style.width = `${(currentIndex / totalQuestions) * 100}%`;
+
     if (categoryTag && question.categoryName) {
       categoryTag.textContent = question.categoryName;
       categoryTag.style.display = '';
@@ -118,8 +141,7 @@
       categoryTag.style.display = 'none';
     }
 
-    const optionsContainer = document.getElementById('quizOptions');
-    optionsContainer.innerHTML = '';
+    if (optionsContainer) optionsContainer.innerHTML = '';
 
     question.shuffledOptions.forEach((option) => {
       const btn = document.createElement('button');
@@ -128,16 +150,16 @@
       btn.setAttribute('role', 'radio');
       btn.setAttribute('aria-checked', 'false');
       btn.addEventListener('click', () => selectAnswer(option.originalIndex));
-      optionsContainer.appendChild(btn);
+      if (optionsContainer) optionsContainer.appendChild(btn);
     });
 
-    document.getElementById('quizFeedback').textContent = '';
-    document.getElementById('quizExplanation').style.display = 'none';
-    document.getElementById('btnNextQuestion').style.display = 'none';
-    document.getElementById('quizResult').style.display = 'none';
-    document.getElementById('quizQuestionCard').style.display = '';
-    document.getElementById('quizOptions').style.display = '';
-    document.getElementById('btnRestartQuiz').style.display = 'none';
+    if (feedback) feedback.textContent = '';
+    if (explanation) explanation.style.display = 'none';
+    if (btnNext) btnNext.style.display = 'none';
+    if (resultDiv) resultDiv.style.display = 'none';
+    if (questionCard) questionCard.style.display = '';
+    if (optionsContainer) optionsContainer.style.display = '';
+    if (btnRestart) btnRestart.style.display = 'none';
   }
 
   /* ========== Select Answer ========== */
@@ -168,32 +190,29 @@
     const feedback = document.getElementById('quizFeedback');
     const explanation = document.getElementById('quizExplanation');
 
-    answeredQuestions.push({
-      question: question.question,
-      userAnswer: selectedIndex,
-      correctAnswer: question.correct,
-      isCorrect,
-      category: question.category
-    });
-
     if (isCorrect) {
       score++;
-      feedback.textContent = '✅ إجابة صحيحة! أحسنت.';
-      feedback.style.color = 'var(--success)';
+      if (feedback) {
+        feedback.textContent = '✅ إجابة صحيحة! أحسنت.';
+        feedback.style.color = 'var(--success)';
+      }
     } else {
-      feedback.textContent = '❌ إجابة خاطئة.';
-      feedback.style.color = 'var(--danger)';
+      if (feedback) {
+        feedback.textContent = '❌ إجابة خاطئة.';
+        feedback.style.color = 'var(--danger)';
+      }
       wrongAnswers.push({
         question: question.question,
         userAnswer: selectedIndex,
         correctAnswer: question.correct,
         options: question.options,
         explanation: question.explanation,
-        category: question.category
+        category: question.category,
+        categoryName: question.categoryName
       });
     }
 
-    if (question.explanation) {
+    if (question.explanation && explanation) {
       explanation.textContent = `💡 ${question.explanation}`;
       explanation.style.display = 'block';
     }
@@ -201,15 +220,12 @@
     updateScoreDisplay();
 
     const progressFill = document.getElementById('quizProgressFill');
-    progressFill.style.width = `${((currentIndex + 1) / totalQuestions) * 100}%`;
+    if (progressFill) progressFill.style.width = `${((currentIndex + 1) / totalQuestions) * 100}%`;
 
     const btnNext = document.getElementById('btnNextQuestion');
-    if (currentIndex < totalQuestions - 1) {
+    if (btnNext) {
       btnNext.style.display = 'inline-flex';
-      btnNext.textContent = 'التالي ▶';
-    } else {
-      btnNext.style.display = 'inline-flex';
-      btnNext.textContent = '📊 عرض النتيجة';
+      btnNext.textContent = currentIndex < totalQuestions - 1 ? 'التالي ▶' : '📊 عرض النتيجة';
     }
   }
 
@@ -235,14 +251,22 @@
   function showFinalResult() {
     quizActive = false;
 
-    document.getElementById('quizQuestionCard').style.display = 'none';
-    document.getElementById('quizOptions').style.display = 'none';
-    document.getElementById('quizFeedback').textContent = '';
-    document.getElementById('quizExplanation').style.display = 'none';
-    document.getElementById('btnNextQuestion').style.display = 'none';
-
+    const questionCard = document.getElementById('quizQuestionCard');
+    const options = document.getElementById('quizOptions');
+    const feedback = document.getElementById('quizFeedback');
+    const explanation = document.getElementById('quizExplanation');
+    const btnNext = document.getElementById('btnNextQuestion');
     const resultDiv = document.getElementById('quizResult');
-    resultDiv.style.display = 'block';
+    const btnRestart = document.getElementById('btnRestartQuiz');
+    const progressFill = document.getElementById('quizProgressFill');
+
+    if (questionCard) questionCard.style.display = 'none';
+    if (options) options.style.display = 'none';
+    if (feedback) feedback.textContent = '';
+    if (explanation) explanation.style.display = 'none';
+    if (btnNext) btnNext.style.display = 'none';
+    if (resultDiv) resultDiv.style.display = 'block';
+    if (progressFill) progressFill.style.width = '100%';
 
     const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
 
@@ -299,12 +323,12 @@
 
     if (percentage === 100) {
       resultHTML += '<p style="margin-top:16px;color:var(--success);font-weight:600;">🎉 علامة كاملة! أنت متمكن من المادة.</p>';
+    } else if (percentage >= 80) {
+      resultHTML += '<p style="margin-top:16px;color:var(--info);font-weight:600;">👏 أداء رائع! واصل التقدم.</p>';
     }
 
-    resultDiv.innerHTML = resultHTML;
-
-    document.getElementById('btnRestartQuiz').style.display = 'inline-flex';
-    document.getElementById('quizProgressFill').style.width = '100%';
+    if (resultDiv) resultDiv.innerHTML = resultHTML;
+    if (btnRestart) btnRestart.style.display = 'inline-flex';
   }
 
   /* ========== Restart ========== */
@@ -313,11 +337,17 @@
     prepareQuestions();
     updateScoreDisplay();
 
-    document.getElementById('quizResult').style.display = 'none';
-    document.getElementById('btnRestartQuiz').style.display = 'none';
-    document.getElementById('quizQuestionCard').style.display = '';
-    document.getElementById('quizOptions').style.display = '';
-    document.getElementById('quizProgressFill').style.width = '0%';
+    const resultDiv = document.getElementById('quizResult');
+    const btnRestart = document.getElementById('btnRestartQuiz');
+    const questionCard = document.getElementById('quizQuestionCard');
+    const options = document.getElementById('quizOptions');
+    const progressFill = document.getElementById('quizProgressFill');
+
+    if (resultDiv) resultDiv.style.display = 'none';
+    if (btnRestart) btnRestart.style.display = 'none';
+    if (questionCard) questionCard.style.display = '';
+    if (options) options.style.display = '';
+    if (progressFill) progressFill.style.width = '0%';
 
     showQuestion();
   }
