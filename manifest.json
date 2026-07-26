@@ -12,44 +12,14 @@
   "lang": "ar",
   "dir": "rtl",
   "categories": ["education", "utilities", "productivity"],
-  "description": "مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين",
   "icons": [
-    {
-      "src": "./192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "./192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
-  "screenshots": [],
   "shortcuts": [
-    {
-      "name": "المحاكاة",
-      "short_name": "محاكاة",
-      "description": "افتح محاكي الدوائر الكهربائية",
-      "url": "./#simulator",
-      "icons": [{ "src": "./192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "الحاسبات",
-      "short_name": "حاسبات",
-      "description": "الحاسبات الهندسية",
-      "url": "./#calculators",
-      "icons": [{ "src": "./192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "الاختبارات",
-      "short_name": "اختبارات",
-      "description": "اختبر معلوماتك",
-      "url": "./#quiz",
-      "icons": [{ "src": "./192.png", "sizes": "192x192" }]
-    }
+    { "name": "المحاكاة", "short_name": "محاكاة", "description": "افتح محاكي الدوائر", "url": "./#simulator", "icons": [{ "src": "./192.png", "sizes": "192x192" }] },
+    { "name": "الحاسبات", "short_name": "حاسبات", "description": "الحاسبات الهندسية", "url": "./#calculators", "icons": [{ "src": "./192.png", "sizes": "192x192" }] },
+    { "name": "الاختبارات", "short_name": "اختبارات", "description": "اختبر معلوماتك", "url": "./#quiz", "icons": [{ "src": "./192.png", "sizes": "192x192" }] }
   ],
   "prefer_related_applications": false
 }
