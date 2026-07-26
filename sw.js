@@ -1,13 +1,12 @@
 /* ==========================================================================
-   DrDer Electronic - Service Worker v3.0
-   Cache Strategy: Cache First with Network Update
-   Full offline support for all application and simulator files
+   DrDer Electronic - Service Worker v4.2
+   Updated asset list - removed deleted simulator files
    ========================================================================== */
 
-const CACHE_NAME = 'drder-electronic-v3.0.0';
-const RUNTIME_CACHE = 'drder-runtime-v3.0.0';
+var CACHE_NAME = 'drder-electronic-v4.2.0';
+var RUNTIME_CACHE = 'drder-runtime-v4.2.0';
 
-const PRECACHE_ASSETS = [
+var PRECACHE_ASSETS = [
   './',
   './index.html',
   './style.css',
@@ -20,178 +19,119 @@ const PRECACHE_ASSETS = [
   './512.png',
   './simulator/simulator.css',
   './simulator/simulator.js',
-  './simulator/simulator-ui.js',
-  './simulator/simulator-engine.js',
+  './simulator/simulator-utils.js',
   './simulator/simulator-components.js',
-  './simulator/simulator-wires.js',
-  './simulator/simulator-canvas.js',
+  './simulator/simulator-history.js',
   './simulator/simulator-selection.js',
   './simulator/simulator-drag.js',
+  './simulator/simulator-canvas.js',
+  './simulator/simulator-wires.js',
   './simulator/simulator-properties.js',
   './simulator/simulator-validation.js',
   './simulator/simulator-power.js',
-  './simulator/simulator-project.js',
-  './simulator/simulator-history.js',
-  './simulator/simulator-library.js',
-  './simulator/simulator-utils.js'
+  './simulator/simulator-engine.js',
+  './simulator/simulator-project.js'
 ];
 
-/* ========== Install Event ========== */
-self.addEventListener('install', (event) => {
+self.addEventListener('install', function (event) {
   self.skipWaiting();
-
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        return Promise.allSettled(
-          PRECACHE_ASSETS.map((asset) =>
-            cache.add(asset).catch((err) => {
-              console.warn('[SW] Failed to cache:', asset, err.message);
-            })
-          )
-        );
-      })
-      .then((results) => {
-        const succeeded = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
-        console.log(`[SW] Installation complete - ${succeeded} cached, ${failed} failed`);
-      })
+    caches.open(CACHE_NAME).then(function (cache) {
+      return Promise.allSettled(
+        PRECACHE_ASSETS.map(function (asset) {
+          return cache.add(asset).catch(function (err) {
+            console.warn('[SW] Failed to cache: ' + asset);
+          });
+        })
+      );
+    }).then(function () {
+      console.log('[SW] Installation complete');
+    })
   );
 });
 
-/* ========== Activate Event ========== */
-self.addEventListener('activate', (event) => {
-  const validCaches = [CACHE_NAME, RUNTIME_CACHE];
-
+self.addEventListener('activate', function (event) {
+  var validCaches = [CACHE_NAME, RUNTIME_CACHE];
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (!validCaches.includes(cacheName)) {
-              console.log('[SW] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => {
-        self.clients.claim();
-        console.log('[SW] Activation complete');
-      })
+    caches.keys().then(function (cacheNames) {
+      return Promise.all(
+        cacheNames.map(function (cacheName) {
+          if (validCaches.indexOf(cacheName) === -1) {
+            console.log('[SW] Deleting old cache: ' + cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(function () {
+      self.clients.claim();
+      console.log('[SW] Activation complete');
+    })
   );
 });
 
-/* ========== Fetch Event ========== */
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
+self.addEventListener('fetch', function (event) {
+  var request = event.request;
   if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-
-  if (!url.origin.includes(self.location.origin)) return;
-
-  if (url.pathname.includes('sockjs') || url.pathname.includes('hot-update')) {
-    return;
-  }
+  var url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
   event.respondWith(handleFetch(request));
 });
 
-async function handleFetch(request) {
-  try {
-    const cachedResponse = await caches.match(request);
-
+function handleFetch(request) {
+  return caches.match(request).then(function (cachedResponse) {
     if (cachedResponse) {
       updateCacheInBackground(request);
       return cachedResponse;
     }
 
-    const networkResponse = await fetch(request);
-
-    if (networkResponse && networkResponse.ok) {
-      const cache = await caches.open(RUNTIME_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-
-    if (request.headers.get('accept') && request.headers.get('accept').includes('text/html')) {
-      return caches.match('./index.html');
-    }
-
-    return new Response(
-      JSON.stringify({
-        offline: true,
-        message: 'أنت غير متصل بالإنترنت. يرجى الاتصال لتحميل هذا المحتوى.'
-      }),
-      {
-        status: 503,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    return fetch(request).then(function (networkResponse) {
+      if (networkResponse && networkResponse.ok) {
+        var responseClone = networkResponse.clone();
+        caches.open(RUNTIME_CACHE).then(function (cache) {
+          cache.put(request, responseClone);
+        });
       }
-    );
-  }
+      return networkResponse;
+    }).catch(function () {
+      return caches.match(request).then(function (cached) {
+        if (cached) return cached;
+        if (request.headers.get('accept') && request.headers.get('accept').indexOf('text/html') !== -1) {
+          return caches.match('./index.html');
+        }
+        return new Response(JSON.stringify({ offline: true, message: 'أنت غير متصل بالإنترنت.' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' }
+        });
+      });
+    });
+  });
 }
 
-async function updateCacheInBackground(request) {
-  try {
-    const cache = await caches.open(RUNTIME_CACHE);
-    const response = await fetch(request);
-
-    if (response && response.ok) {
-      await cache.put(request, response);
-    }
-  } catch (error) {
-    // Silently fail - background updates are not critical
-  }
+function updateCacheInBackground(request) {
+  caches.open(RUNTIME_CACHE).then(function (cache) {
+    fetch(request).then(function (response) {
+      if (response && response.ok) {
+        cache.put(request, response);
+      }
+    }).catch(function () {});
+  });
 }
 
-/* ========== Message Handler ========== */
-self.addEventListener('message', (event) => {
+self.addEventListener('message', function (event) {
   if (event.data && event.data.action === 'skipWaiting') {
     self.skipWaiting();
   }
-
   if (event.data && event.data.action === 'clearCaches') {
-    caches.keys().then((names) => {
-      return Promise.all(names.map((name) => caches.delete(name)));
-    }).then(() => {
-      if (event.ports && event.ports[0]) {
-        event.ports[0].postMessage({ success: true });
-      }
-    });
-  }
-
-  if (event.data && event.data.action === 'getCacheInfo') {
-    caches.keys().then((names) => {
-      return Promise.all(names.map((name) => {
-        return caches.open(name).then((cache) => {
-          return cache.keys().then((keys) => ({
-            name,
-            count: keys.length
-          }));
-        });
-      }));
-    }).then((info) => {
-      if (event.ports && event.ports[0]) {
-        event.ports[0].postMessage({ caches: info });
-      }
+    caches.keys().then(function (names) {
+      return Promise.all(names.map(function (name) { return caches.delete(name); }));
     });
   }
 });
 
-/* ========== Push Notification ========== */
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'DrDer Electronic';
-  const options = {
+self.addEventListener('push', function (event) {
+  var data = event.data ? event.data.json() : {};
+  var options = {
     body: data.body || 'تحديث جديد من مختبر الهندسة الكهربائية',
     icon: './192.png',
     badge: './192.png',
@@ -202,25 +142,20 @@ self.addEventListener('push', (event) => {
       { action: 'close', title: 'إغلاق' }
     ]
   };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification(data.title || 'DrDer Electronic', options));
 });
 
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', function (event) {
   event.notification.close();
-
   if (event.action === 'close') return;
-
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clients) => {
-      const url = event.notification.data && event.notification.data.url || './';
-
-      for (const client of clients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus();
+    self.clients.matchAll({ type: 'window' }).then(function (clients) {
+      var url = event.notification.data && event.notification.data.url || './';
+      for (var i = 0; i < clients.length; i++) {
+        if (clients[i].url.indexOf(self.location.origin) !== -1 && 'focus' in clients[i]) {
+          return clients[i].focus();
         }
       }
-
       return self.clients.openWindow(url);
     })
   );
