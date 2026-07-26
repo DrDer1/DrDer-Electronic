@@ -1,362 +1,122 @@
 /* ==========================================================================
-   DrDer Electronic - Quiz Data
-   30 Questions with Categories, Explanations & Review Suggestions
+   DrDer Electronic - Complete Quiz Data
+   100 Questions across all categories with explanations
    ========================================================================== */
 
 const QUIZ_DATA = [
-  /* ========== أساسيات الكهرباء ========== */
-  {
-    id: 1,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'ما هي وحدة قياس شدة التيار الكهربائي؟',
-    options: ['الفولت V', 'الأمبير A', 'الأوم Ω', 'الواط W'],
-    correct: 1,
-    explanation: 'الأمبير (A) هو وحدة قياس شدة التيار الكهربائي في النظام الدولي. سميت نسبة للعالم أندريه ماري أمبير.',
-    reviewCategory: 'basics'
-  },
-  {
-    id: 2,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'ما هو قانون أوم الصحيح؟',
-    options: ['V = I / R', 'V = I × R', 'V = I + R', 'R = V × I'],
-    correct: 1,
-    explanation: 'قانون أوم: الجهد (V) = التيار (I) × المقاومة (R). وهو القانون الأساسي الذي يربط بين الكميات الكهربائية الثلاث.',
-    reviewCategory: 'basics'
-  },
-  {
-    id: 3,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'التيار المستمر (DC) يتميز بأنه:',
-    options: ['يسري في اتجاهين متعاكسين', 'يسري في اتجاه واحد ثابت', 'يتغير بشكل عشوائي', 'لا يسري في الأسلاك'],
-    correct: 1,
-    explanation: 'التيار المستمر DC يسري في اتجاه واحد ثابت القطبية. مثال عليه: البطاريات والخلايا الشمسية.',
-    reviewCategory: 'basics'
-  },
-  {
-    id: 4,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'وحدة قياس المقاومة الكهربائية هي:',
-    options: ['الفاراد F', 'الهنري H', 'الأوم Ω', 'الفولت V'],
-    correct: 2,
-    explanation: 'الأوم (Ω) هو وحدة قياس المقاومة الكهربائية. سميت نسبة للعالم جورج سيمون أوم.',
-    reviewCategory: 'basics'
-  },
-  {
-    id: 5,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'تردد التيار الكهربائي في معظم دول العالم هو:',
-    options: ['25 هرتز', '50 هرتز', '75 هرتز', '100 هرتز'],
-    correct: 1,
-    explanation: 'تردد التيار الكهربائي 50 هرتز في معظم دول العالم (أوروبا، آسيا، أفريقيا)، و60 هرتز في أمريكا الشمالية وبعض الدول.',
-    reviewCategory: 'basics'
-  },
-  {
-    id: 6,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'قانون كيرشوف للتيار ينص على أن:',
-    options: [
-      'مجموع التيارات الداخلة للعقدة = مجموع التيارات الخارجة منها',
-      'الجهد ثابت في جميع نقاط الدائرة',
-      'المقاومة الكلية = مجموع المقاومات',
-      'القدرة ثابتة في جميع الأحمال'
-    ],
-    correct: 0,
-    explanation: 'قانون كيرشوف الأول (KCL): المجموع الجبري للتيارات عند أي عقدة يساوي صفراً. أي أن ما يدخل = ما يخرج.',
-    reviewCategory: 'basics'
-  },
+  /* ========== أساسيات الكهرباء (20 سؤال) ========== */
+  { id: 1, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'easy', question: 'ما هي وحدة قياس شدة التيار الكهربائي؟', options: ['الفولت V', 'الأمبير A', 'الأوم Ω', 'الواط W'], correct: 1, explanation: 'الأمبير (A) هو وحدة قياس شدة التيار الكهربائي. سميت نسبة للعالم أندريه ماري أمبير.', reviewCategory: 'basics' },
+  { id: 2, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'easy', question: 'قانون أوم الصحيح هو:', options: ['V = I / R', 'V = I × R', 'V = I + R', 'R = V × I'], correct: 1, explanation: 'قانون أوم: الجهد (V) = التيار (I) × المقاومة (R).', reviewCategory: 'basics' },
+  { id: 3, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'easy', question: 'التيار المستمر DC يتميز بأنه:', options: ['يسري في اتجاهين', 'يسري في اتجاه واحد ثابت', 'يتغير بشكل عشوائي', 'لا يسري في الأسلاك'], correct: 1, explanation: 'التيار المستمر DC يسري في اتجاه واحد ثابت القطبية مثل البطاريات.', reviewCategory: 'basics' },
+  { id: 4, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'easy', question: 'وحدة قياس المقاومة الكهربائية:', options: ['الفاراد', 'الهنري', 'الأوم Ω', 'الفولت'], correct: 2, explanation: 'الأوم (Ω) هو وحدة قياس المقاومة الكهربائية، سميت نسبة لجورج أوم.', reviewCategory: 'basics' },
+  { id: 5, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'easy', question: 'تردد التيار الكهربائي في معظم دول العالم:', options: ['25 هرتز', '50 هرتز', '75 هرتز', '100 هرتز'], correct: 1, explanation: 'تردد 50Hz في معظم الدول، و60Hz في أمريكا الشمالية وبعض الدول.', reviewCategory: 'basics' },
+  { id: 6, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'قانون كيرشوف للتيار ينص على:', options: ['مجموع التيارات الداخلة للعقدة = مجموع التيارات الخارجة', 'الجهد ثابت في الدائرة', 'المقاومة الكلية = مجموع المقاومات', 'القدرة ثابتة'], correct: 0, explanation: 'KCL: المجموع الجبري للتيارات عند أي عقدة = صفر. الداخل = الخارج.', reviewCategory: 'basics' },
+  { id: 7, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'في توصيل المقاومات على التوالي، المقاومة الكلية:', options: ['أقل من أصغر مقاومة', 'تساوي مجموع المقاومات', 'تساوي متوسط المقاومات', 'تساوي أكبر مقاومة'], correct: 1, explanation: 'في التوالي: Rt = R1 + R2 + R3. المقاومة الكلية هي مجموع المقاومات.', reviewCategory: 'basics' },
+  { id: 8, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'في توصيل المقاومات على التوازي، المقاومة الكلية:', options: ['أكبر من أكبر مقاومة', 'تساوي مجموع المقاومات', 'أقل من أصغر مقاومة', 'تساوي ضعف المقاومات'], correct: 2, explanation: 'في التوازي: 1/Rt = 1/R1 + 1/R2. المقاومة الكلية أقل من أصغر مقاومة.', reviewCategory: 'basics' },
+  { id: 9, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'مقاومتان 6Ω و3Ω على التوازي، المقاومة الكلية:', options: ['9Ω', '4.5Ω', '2Ω', '18Ω'], correct: 2, explanation: '1/Rt = 1/6 + 1/3 = 0.5 → Rt = 2Ω', reviewCategory: 'basics' },
+  { id: 10, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'القدرة الكهربائية تحسب بالعلاقة:', options: ['P = V / I', 'P = V × I', 'P = V + I', 'P = I / V'], correct: 1, explanation: 'القدرة (واط) = الجهد (فولت) × التيار (أمبير). P = V × I', reviewCategory: 'basics' },
+  { id: 11, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'لمبة 100W تعمل على 220V، ما قيمة التيار المسحوب؟', options: ['0.22A', '0.45A', '2.2A', '22A'], correct: 1, explanation: 'I = P/V = 100/220 = 0.454A', reviewCategory: 'basics' },
+  { id: 12, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'في نظام ثلاثي الطور متزن، مجموع التيارات اللحظية:', options: ['يساوي 3 أضعاف تيار الطور', 'يساوي √3 × تيار الطور', 'يساوي صفر', 'يساوي تيار الخط'], correct: 2, explanation: 'في النظام ثلاثي الطور المتزن، مجموع التيارات اللحظية في الأوجه الثلاثة = صفر.', reviewCategory: 'basics' },
+  { id: 13, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'معامل القدرة المثالي يجب أن يكون:', options: ['0', '0.5', 'قريب من 1', '-1'], correct: 2, explanation: 'معامل القدرة المثالي قريب من 1 (0.95 أو أعلى). كلما اقترب من 1 كان أفضل.', reviewCategory: 'basics' },
+  { id: 14, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'المقاومة الكهربائية لموصل تتناسب:', options: ['طردياً مع الطول وعكسياً مع المساحة', 'عكسياً مع الطول وطردياً مع المساحة', 'مع مربع التيار', 'مع درجة الحرارة فقط'], correct: 0, explanation: 'R = ρL/A. المقاومة تتناسب طردياً مع الطول وعكسياً مع مساحة المقطع.', reviewCategory: 'basics' },
+  { id: 15, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'سخان 2000W يعمل ساعتين يومياً، الاستهلاك الشهري:', options: ['60 kWh', '120 kWh', '4 kWh', '2000 kWh'], correct: 1, explanation: 'E = P×t = 2000W × 2h × 30day = 120,000Wh = 120kWh', reviewCategory: 'basics' },
+  { id: 16, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'وحدة قياس السعة الكهربائية:', options: ['الأوم', 'الفاراد F', 'الهنري', 'الكولوم'], correct: 1, explanation: 'الفاراد F هو وحدة قياس السعة الكهربائية. سمي نسبة للعالم مايكل فاراداي.', reviewCategory: 'basics' },
+  { id: 17, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'medium', question: 'جهد البطارية 12V ومقاومة داخلية 1Ω، ما أقصى تيار؟', options: ['1A', '12A', '6A', '24A'], correct: 1, explanation: 'تيار القصر = V/R = 12/1 = 12A', reviewCategory: 'basics' },
+  { id: 18, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'easy', question: 'أي المواد التالية موصل جيد للكهرباء؟', options: ['الخشب', 'النحاس', 'البلاستيك', 'الزجاج'], correct: 1, explanation: 'النحاس موصل ممتاز للكهرباء. الخشب والبلاستيك والزجاج عوازل.', reviewCategory: 'basics' },
+  { id: 19, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'عند مضاعفة الجهد مع ثبات المقاومة، التيار:', options: ['يظل ثابتاً', 'يتضاعف', 'يقل للنصف', 'يصبح صفراً'], correct: 1, explanation: 'حسب قانون أوم: I = V/R. إذا تضاعف V مع ثبات R، يتضاعف I.', reviewCategory: 'basics' },
+  { id: 20, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'مقاومة جسم الإنسان الجاف تقريباً:', options: ['10Ω', '100Ω', '1000Ω', '10000Ω'], correct: 2, explanation: 'مقاومة الجسم الجاف حوالي 1000Ω. الرطب حوالي 200-500Ω.', reviewCategory: 'basics' },
 
-  /* ========== الإلكترونيات ========== */
-  {
-    id: 7,
-    category: 'electronics',
-    categoryName: 'الإلكترونيات',
-    question: 'ما هي وظيفة المكثف الأساسية في الدائرة الإلكترونية؟',
-    options: ['تضخيم التيار', 'تخزين الشحنة الكهربائية', 'توليد تيار مستمر', 'قطع التيار المتردد'],
-    correct: 1,
-    explanation: 'المكثف يقوم بتخزين الشحنة الكهربائية على شكل مجال كهربائي بين لوحيه. يستخدم في التنعيم والترشيح والتوقيت.',
-    reviewCategory: 'electronics'
-  },
-  {
-    id: 8,
-    category: 'electronics',
-    categoryName: 'الإلكترونيات',
-    question: 'الدايود العادي يسمح بمرور التيار في:',
-    options: ['الاتجاهين معاً', 'اتجاه واحد فقط (أمامي)', 'بشكل متقطع', 'لا يسمح بمرور التيار أبداً'],
-    correct: 1,
-    explanation: 'الدايود يسمح بمرور التيار في الاتجاه الأمامي فقط (من المصعد إلى المهبط) ويمنعه في الاتجاه العكسي.',
-    reviewCategory: 'electronics'
-  },
-  {
-    id: 9,
-    category: 'electronics',
-    categoryName: 'الإلكترونيات',
-    question: 'الجهد الأمامي التقريبي للدايود السيليكوني هو:',
-    options: ['0.2 فولت', '0.7 فولت', '1.5 فولت', '3.3 فولت'],
-    correct: 1,
-    explanation: 'الجهد الأمامي للدايود السيليكوني حوالي 0.7 فولت. للدايود الجرمانيومي حوالي 0.3 فولت. هذا الجهد ضروري لتشغيل الدايود.',
-    reviewCategory: 'electronics'
-  },
-  {
-    id: 10,
-    category: 'electronics',
-    categoryName: 'الإلكترونيات',
-    question: 'ما هو نوع الترانزستور الأكثر استخداماً في الدوائر الرقمية؟',
-    options: ['BJT ثنائي القطبية', 'JFET', 'MOSFET', 'UJT'],
-    correct: 2,
-    explanation: 'الـ MOSFET هو الأكثر استخداماً في الدوائر الرقمية والمعالجات بسبب استهلاكه المنخفض للطاقة وسرعته العالية.',
-    reviewCategory: 'electronics'
-  },
-  {
-    id: 11,
-    category: 'electronics',
-    categoryName: 'الإلكترونيات',
-    question: 'وحدة قياس سعة المكثف هي:',
-    options: ['الأوم Ω', 'الفاراد F', 'الهنري H', 'الواط W'],
-    correct: 1,
-    explanation: 'الفاراد (F) هو وحدة قياس السعة الكهربائية. سميت نسبة للعالم مايكل فاراداي. المكثفات العملية بالميكروفاراد (μF) أو البيكوفاراد (pF).',
-    reviewCategory: 'electronics'
-  },
+  /* ========== الإلكترونيات (20 سؤال) ========== */
+  { id: 21, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'easy', question: 'ما وظيفة المكثف الأساسية؟', options: ['تضخيم التيار', 'تخزين الشحنة الكهربائية', 'توليد تيار', 'قطع التيار'], correct: 1, explanation: 'المكثف يخزن الشحنة الكهربائية في مجال كهربائي بين لوحيه.', reviewCategory: 'electronics' },
+  { id: 22, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'easy', question: 'الدايود يسمح بمرور التيار في:', options: ['الاتجاهين', 'اتجاه واحد فقط', 'بشكل متقطع', 'لا يسمح'], correct: 1, explanation: 'الدايود يسمح بمرور التيار في الاتجاه الأمامي فقط (الأنود إلى الكاثود).', reviewCategory: 'electronics' },
+  { id: 23, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'easy', question: 'الجهد الأمامي للدايود السيليكوني:', options: ['0.2V', '0.7V', '1.5V', '5V'], correct: 1, explanation: 'الجهد الأمامي للدايود السيليكوني حوالي 0.7V. الجرمانيوم 0.3V.', reviewCategory: 'electronics' },
+  { id: 24, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'الترانزستور NPN، الطرف الذي يتحكم بالتيار هو:', options: ['المجمع C', 'القاعدة B', 'الباعث E', 'جميع الأطراف'], correct: 1, explanation: 'تيار القاعدة IB هو الذي يتحكم بتيار المجمع IC = β × IB.', reviewCategory: 'electronics' },
+  { id: 25, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'لونان على مقاومة: أحمر-أحمر، قيمتها:', options: ['22Ω', '220Ω', '2200Ω', '2.2Ω'], correct: 2, explanation: 'أحمر=2، أحمر=2، إذا كان 3 ألوان: 22×10⁰=22Ω. مع لون ثالث بني: 220Ω.', reviewCategory: 'electronics' },
+  { id: 26, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'LED يحتاج مقاومة تحديد تيار لأن:', options: ['لزيادة الجهد', 'تياره يزيد بسرعة مع الجهد', 'لتقليل الإضاءة', 'للحماية من الحرارة فقط'], correct: 1, explanation: 'LED له منحنى V-I حاد: زيادة صغيرة في الجهد تسبب زيادة كبيرة في التيار وقد تحرقه.', reviewCategory: 'electronics' },
+  { id: 27, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'رمز β في الترانزستور يعني:', options: ['الجهد', 'التردد', 'معامل التكبير', 'المقاومة'], correct: 2, explanation: 'β (أو hFE) هو معامل تكبير التيار في الترانزستور: Ic = β × Ib.', reviewCategory: 'electronics' },
+  { id: 28, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'خرج بوابة AND يكون 1 عندما:', options: ['أحد المدخلين 1', 'كلا المدخلين 1', 'كلا المدخلين 0', 'أي حالة'], correct: 1, explanation: 'بوابة AND: الخرج = 1 فقط عندما تكون جميع المداخل = 1.', reviewCategory: 'electronics' },
+  { id: 29, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'دائرة 555 في الوضع غير المستقر تنتج:', options: ['جهد ثابت', 'موجة مربعة', 'موجة جيبية', 'تيار مستمر'], correct: 1, explanation: 'الوضع Astable لـ 555 ينتج موجة مربعة (نبضات) بتردد يعتمد على R1,R2,C.', reviewCategory: 'electronics' },
+  { id: 30, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'مكبر العمليات Op-Amp المثالي له:', options: ['ربح محدود', 'ربح لانهائي', 'مقاومة دخل صفر', 'مقاومة خرج لانهائية'], correct: 1, explanation: 'Op-Amp المثالي: ربح لانهائي، مقاومة دخل لانهائية، مقاومة خرج صفر.', reviewCategory: 'electronics' },
+  { id: 31, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'المكثف في دوائر التيار المستمر بعد شحنه:', options: ['يعمل كمقاومة', 'يعمل كدائرة مفتوحة', 'يعمل كدائرة قصر', 'يستمر في الشحن'], correct: 1, explanation: 'بعد اكتمال الشحن في DC، المكثف يعمل كدائرة مفتوحة (يمنع مرور التيار).', reviewCategory: 'electronics' },
+  { id: 32, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'الملف في دوائر التيار المستمر بعد استقرار التيار:', options: ['يعمل كمقاومة عالية', 'يعمل كدائرة قصر', 'يخزن جهد', 'يقطع التيار'], correct: 1, explanation: 'بعد استقرار التيار في DC، الملف يعمل كدائرة قصر (مقاومته صفر تقريباً).', reviewCategory: 'electronics' },
+  { id: 33, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'ثابت الزمن τ لدائرة RC يساوي:', options: ['R + C', 'R / C', 'R × C', 'C / R'], correct: 2, explanation: 'τ = R × C. بعد زمن τ يصل جهد المكثف إلى 63% من الجهد النهائي.', reviewCategory: 'electronics' },
+  { id: 34, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'easy', question: 'لون شريط السماحية الذهبي على المقاومة يعني:', options: ['±1%', '±2%', '±5%', '±10%'], correct: 2, explanation: 'الشريط الذهبي = ±5%، الفضي = ±10%، البني = ±1%.', reviewCategory: 'electronics' },
+  { id: 35, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'دارة جسر التقويم Bridge Rectifier تحول:', options: ['DC إلى AC', 'AC إلى DC', 'جهد إلى تيار', 'تردد إلى جهد'], correct: 1, explanation: 'جسر التقويم (4 دايودات) يحول التيار المتردد AC إلى تيار مستمر نابض DC.', reviewCategory: 'electronics' },
+  { id: 36, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'Flip-Flop من نوع D ينقل المدخل للخرج عند:', options: ['أي وقت', 'حافة النبضة Clock', 'عندما D=0', 'باستمرار'], correct: 1, explanation: 'D-FF ينقل قيمة D إلى Q فقط عند حافة النبضة (صاعدة أو هابطة).', reviewCategory: 'electronics' },
+  { id: 37, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'ما عدد الأطراف في الدائرة المتكاملة 555؟', options: ['6', '8', '14', '16'], correct: 1, explanation: 'الدائرة المتكاملة 555 تحتوي على 8 أطراف (DIP-8).', reviewCategory: 'electronics' },
+  { id: 38, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'medium', question: 'المكثف الكيميائي (الإلكتروليتي) يتميز بـ:', options: ['غير مستقطب', 'مستقطب (له طرف موجب وسالب)', 'سعة صغيرة جداً', 'يعمل بالتيار المتردد فقط'], correct: 1, explanation: 'المكثف الكيميائي مستقطب، يجب توصيل الطرف الموجب بالجهد الموجب وإلا قد ينفجر.', reviewCategory: 'electronics' },
+  { id: 39, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'كم Flip-Flop نحتاج لبناء عداد 4-bit؟', options: ['2', '4', '8', '16'], correct: 1, explanation: 'كل Flip-Flop يخزن 1 بت. لعداد 4-bit نحتاج 4 Flip-Flops (يعد من 0 إلى 15).', reviewCategory: 'electronics' },
+  { id: 40, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'جهد انهيار زينر 5.1V يعني:', options: ['يعمل كدايود عادي عند 5.1V', 'يثبت الجهد عند 5.1V في الانحياز العكسي', 'يحترق عند 5.1V', 'يضخم الجهد 5.1 مرة'], correct: 1, explanation: 'زينر مصمم للعمل في منطقة الانهيار العكسي لتثبيت الجهد عند قيمة محددة.', reviewCategory: 'electronics' },
 
-  /* ========== العناصر الكهربائية ========== */
-  {
-    id: 12,
-    category: 'components',
-    categoryName: 'العناصر الكهربائية',
-    question: 'ما هو الفرق الرئيسي بين الريليه والكونتاكتور؟',
-    options: [
-      'لا يوجد فرق بينهما',
-      'الكونتاكتور يتحمل تيارات أعلى',
-      'الريليه أسرع في الفصل',
-      'الكونتاكتور أصغر حجماً'
-    ],
-    correct: 1,
-    explanation: 'الكونتاكتور مصمم لتحمل تيارات أعلى من الريليه، ويستخدم للأحمال الكبيرة مثل المحركات. الريليه يستخدم للتحكم في تيارات صغيرة.',
-    reviewCategory: 'components'
-  },
-  {
-    id: 13,
-    category: 'components',
-    categoryName: 'العناصر الكهربائية',
-    question: 'نقطة التلامس NO تعني:',
-    options: ['مغلقة دائماً', 'مفتوحة دائماً', 'متغيرة الوضع', 'تالمس مؤقت'],
-    correct: 1,
-    explanation: 'NO = Normally Open: نقطة التلامس تكون مفتوحة في الوضع الطبيعي (عند عدم تغذية الملف)، وتغلق عند تغذية الملف.',
-    reviewCategory: 'components'
-  },
-  {
-    id: 14,
-    category: 'components',
-    categoryName: 'العناصر الكهربائية',
-    question: 'نقطة التلامس NC تعني:',
-    options: ['مفتوحة دائماً', 'مغلقة دائماً', 'غير موصلة', 'تالمس محايد'],
-    correct: 1,
-    explanation: 'NC = Normally Closed: نقطة التلامس تكون مغلقة في الوضع الطبيعي، وتفتح عند تغذية الملف.',
-    reviewCategory: 'components'
-  },
-  {
-    id: 15,
-    category: 'components',
-    categoryName: 'العناصر الكهربائية',
-    question: 'أي منحنى لقاطع MCB يستخدم للأحمال المنزلية العادية؟',
-    options: ['منحنى B', 'منحنى C', 'منحنى D', 'منحنى Z'],
-    correct: 1,
-    explanation: 'منحنى C هو الأكثر استخداماً في التطبيقات المنزلية والتجارية. يفصل عند 5-10 أضعاف التيار المقنن.',
-    reviewCategory: 'components'
-  },
+  /* ========== العناصر الكهربائية (15 سؤال) ========== */
+  { id: 41, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'easy', question: 'الفرق الرئيسي بين الريليه والكونتاكتور:', options: ['لا فرق', 'الكونتاكتور لتيارات أعلى', 'الريليه أسرع', 'الكونتاكتور أصغر'], correct: 1, explanation: 'الكونتاكتور يتحمل تيارات أعلى (حتى مئات الأمبيرات)، الريليه للتيارات الصغيرة.', reviewCategory: 'components' },
+  { id: 42, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'easy', question: 'نقطة التلامس NO تعني:', options: ['مغلقة دائماً', 'مفتوحة دائماً', 'متغيرة', 'مؤقتة'], correct: 1, explanation: 'NO = Normally Open: مفتوحة في الحالة الطبيعية، تغلق عند تغذية الملف.', reviewCategory: 'components' },
+  { id: 43, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'easy', question: 'نقطة التلامس NC تعني:', options: ['مفتوحة دائماً', 'مغلقة دائماً', 'غير موصلة', 'محايدة'], correct: 1, explanation: 'NC = Normally Closed: مغلقة في الحالة الطبيعية، تفتح عند تغذية الملف.', reviewCategory: 'components' },
+  { id: 44, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'medium', question: 'منحنى القاطع MCB المناسب للأحمال المنزلية:', options: ['منحنى B', 'منحنى C', 'منحنى D', 'منحنى Z'], correct: 1, explanation: 'منحنى C هو الأكثر استخداماً منزلياً وتجارياً (يفصل عند 5-10 أضعاف التيار).', reviewCategory: 'components' },
+  { id: 45, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'medium', question: 'RCD (قاطع الحماية التفاضلية) يفصل عند:', options: ['زيادة التيار', 'تسرب التيار للأرض', 'انخفاض الجهد', 'ارتفاع الحرارة'], correct: 1, explanation: 'RCD يراقب الفرق بين تياري الذهاب والعودة. عند تسرب (>30mA) يفصل فوراً.', reviewCategory: 'components' },
+  { id: 46, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'medium', question: 'Emergency Stop يجب أن يكون:', options: ['NO', 'NC', 'SPDT', 'اختياري'], correct: 1, explanation: 'Emergency Stop يجب أن يكون NC. عند الضغط يفتح ويفصل الدائرة. آمن عند انقطاع السلك.', reviewCategory: 'components' },
+  { id: 47, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'hard', question: 'Overload Relay يحمي المحرك من:', options: ['القصر فقط', 'الحمل الزائد المستمر', 'انخفاض الجهد', 'عكس الدوران'], correct: 1, explanation: 'Overload Relay يحمي من الحمل الزائد لفترة طويلة (تقليد المنحنى الحراري للمحرك).', reviewCategory: 'components' },
+  { id: 48, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'hard', question: 'تصنيف AC3 للكونتاكتور يعني:', options: ['للأحمال المقاومة', 'للمحركات (تشغيل وإيقاف أثناء الدوران)', 'للمكثفات', 'للإضاءة'], correct: 1, explanation: 'AC3: لتشغيل المحركات وفصلها أثناء دورانها. AC1 للأحمال المقاومة.', reviewCategory: 'components' },
+  { id: 49, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'medium', question: 'الفيوز عنصر حماية يعمل على مبدأ:', options: ['الفصل المغناطيسي', 'انصهار سلك رقيق عند زيادة التيار', 'الفصل الإلكتروني', 'التمدد الحراري'], correct: 1, explanation: 'الفيوز يحتوي سلك رقيق ينصهر عند مرور تيار أعلى من المقنن، فيفصل الدائرة.', reviewCategory: 'components' },
+  { id: 50, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'hard', question: 'في دائرة Star-Delta، عدد الكونتاكتورات المستخدمة:', options: ['1', '2', '3', '4'], correct: 2, explanation: 'دائرة ستار-دلتا تحتاج 3 كونتاكتورات: رئيسي (Main)، ستار، دلتا.', reviewCategory: 'components' },
+  { id: 51, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'medium', question: 'الفرق بين MCB و MCCB:', options: ['لا فرق', 'MCCB لتيارات وقدرات قطع أعلى', 'MCB أسرع', 'MCCB للتيار المستمر فقط'], correct: 1, explanation: 'MCCB يتحمل تيارات أعلى (حتى 2500A) وقدرة قطع أكبر من MCB (حتى 125A).', reviewCategory: 'components' },
+  { id: 52, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'easy', question: 'ما وظيفة SPD في اللوحات الكهربائية؟', options: ['قياس التيار', 'الحماية من زيادة الجهد المفاجئ', 'تحسين معامل القدرة', 'توزيع الأحمال'], correct: 1, explanation: 'SPD (Surge Protection Device) يحمي من ارتفاعات الجهد المفاجئة مثل الصواعق.', reviewCategory: 'components' },
+  { id: 53, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'hard', question: 'Self-Holding في دوائر التحكم يعني:', options: ['تشغيل يدوي مستمر', 'استمرار التشغيل بعد رفع إشارة البدء', 'إيقاف تلقائي', 'عكس الحركة'], correct: 1, explanation: 'Self-Holding: نقطة مساعدة NO توازي زر Start لتبقي الملف عاملاً بعد ترك الزر.', reviewCategory: 'components' },
+  { id: 54, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'hard', question: 'Interlock بين كونتاكتورين يمنع:', options: ['التشغيل', 'عمل الكونتاكتورين معاً', 'الإيقاف', 'التحميل الزائد'], correct: 1, explanation: 'التشابك Interlock يمنع كونتاكتورين من العمل معاً (خطر قصر في عكس الحركة).', reviewCategory: 'components' },
+  { id: 55, category: 'components', categoryName: 'العناصر الكهربائية', difficulty: 'medium', question: 'Timer ON Delay يعمل كالتالي:', options: ['يفصل فوراً', 'يغلق نقاطه بعد زمن محدد من تغذية الملف', 'يفتح بعد زمن', 'يعمل فوراً'], correct: 1, explanation: 'ON Delay: عند تغذية الملف، تغلق نقاط التلامس بعد مرور الزمن المضبوط.', reviewCategory: 'components' },
 
-  /* ========== المحركات ========== */
-  {
-    id: 16,
-    category: 'motors',
-    categoryName: 'المحركات والمولدات',
-    question: 'كم مرة يزيد تيار البدء عن التيار المقنن في المحركات الحثية؟',
-    options: ['مرتين', '4 مرات', '6 إلى 8 مرات', '10 مرات'],
-    correct: 2,
-    explanation: 'تيار البدء في المحرك الحثي يصل إلى 6-8 أضعاف التيار المقنن. لذلك نحتاج طرق تشغيل خاصة للمحركات الكبيرة.',
-    reviewCategory: 'motors'
-  },
-  {
-    id: 17,
-    category: 'motors',
-    categoryName: 'المحركات والمولدات',
-    question: 'طريقة ستار-دلتا لتشغيل المحركات تقلل تيار البدء إلى:',
-    options: ['نصف التيار', 'ثلث التيار', 'ربع التيار', 'عشر التيار'],
-    correct: 1,
-    explanation: 'توصيلة ستار تقلل الجهد على كل ملف إلى 1/√3 من جهد الخط، مما يقلل تيار البدء إلى ثلث تيار البدء المباشر تقريباً.',
-    reviewCategory: 'motors'
-  },
-  {
-    id: 18,
-    category: 'motors',
-    categoryName: 'المحركات والمولدات',
-    question: 'ما هو أفضل حل للتحكم في سرعة المحرك وتوفير الطاقة؟',
-    options: ['مقاومة متغيرة', 'محول ذاتي', 'مغير تردد VFD', 'توصيلة ستار دلتا'],
-    correct: 2,
-    explanation: 'مغير التردد VFD يوفر تحكماً كاملاً في سرعة المحرك مع توفير كبير في الطاقة، وحماية متكاملة للمحرك.',
-    reviewCategory: 'motors'
-  },
+  /* ========== المحركات والمولدات (10 أسئلة) ========== */
+  { id: 56, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'medium', question: 'تيار البدء في المحرك الحثي يساوي تقريباً:', options: ['1-2 مرة', '3-4 مرات', '6-8 مرات', '10-15 مرة'], correct: 2, explanation: 'تيار البدء في المحركات الحثية 6-8 أضعاف التيار المقنن.', reviewCategory: 'motors' },
+  { id: 57, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'medium', question: 'سرعة محرك 4 أقطاب على 50Hz:', options: ['750 RPM', '1000 RPM', '1500 RPM', '3000 RPM'], correct: 2, explanation: 'Ns = 120×50/4 = 1500 RPM (تزامنية). الفعلية أقل بقليل بسبب الانزلاق.', reviewCategory: 'motors' },
+  { id: 58, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'easy', question: 'لعكس اتجاه محرك ثلاثي الطور:', options: ['نعكس كل الأطراف', 'نعكس طرفين فقط', 'نغير التردد', 'نضيف مكثف'], correct: 1, explanation: 'لعكس الاتجاه: نعكس توصيل أي طرفين من أطراف التغذية الثلاثة.', reviewCategory: 'motors' },
+  { id: 59, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'hard', question: 'طريقة ستار-دلتا تقلل تيار البدء إلى:', options: ['نصف', 'ثلث', 'ربع', 'عشر'], correct: 1, explanation: 'في ستار، الجهد على الملفات = VL/√3، مما يقلل التيار إلى ثلث تيار دلتا.', reviewCategory: 'motors' },
+  { id: 60, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'hard', question: 'أفضل طريقة للتحكم في سرعة محرك مع توفير طاقة:', options: ['مقاومة متغيرة', 'محول ذاتي', 'VFD', 'تغيير عدد الأقطاب'], correct: 2, explanation: 'VFD (مغير التردد) يوفر تحكماً كاملاً في السرعة مع توفير كبير في الطاقة.', reviewCategory: 'motors' },
+  { id: 61, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'medium', question: 'المحرك الحثي يعمل على مبدأ:', options: ['التوصيل المباشر', 'الحث الكهرومغناطيسي', 'التأثير الكهروضوئي', 'التفريغ الكهربائي'], correct: 1, explanation: 'المجال المغناطيسي الدوار في العضو الثابت يحث تيارات في العضو الدوار فتسبب دورانه.', reviewCategory: 'motors' },
+  { id: 62, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'medium', question: 'سوفت ستارتر Soft Starter يوفر:', options: ['تحكم بالسرعة', 'بدء ناعم فقط', 'عكس اتجاه', 'توليد طاقة'], correct: 1, explanation: 'سوفت ستارتر يوفر بدءاً ناعماً بتقليل الجهد تدريجياً. لا يتحكم بالسرعة بعد البدء.', reviewCategory: 'motors' },
+  { id: 63, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'hard', question: 'محرك 3Ph, 380V, 10A, PF=0.85، قدرته:', options: ['3.8kW', '5.6kW', '6.5kW', '8.0kW'], correct: 1, explanation: 'P = √3×380×10×0.85 = 1.732×380×10×0.85 = 5595W ≈ 5.6kW', reviewCategory: 'motors' },
+  { id: 64, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'easy', question: 'المولد الكهربائي يحول:', options: ['كهرباء إلى حرارة', 'طاقة ميكانيكية إلى كهربائية', 'كهرباء إلى ضوء', 'حرارة إلى كهرباء'], correct: 1, explanation: 'المولد يحول الطاقة الميكانيكية (الدوران) إلى طاقة كهربائية بالحث الكهرومغناطيسي.', reviewCategory: 'motors' },
+  { id: 65, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'hard', question: 'انزلاق المحرك الحثي عند الحمل الكامل:', options: ['0%', '1-5%', '20-30%', '50%'], correct: 1, explanation: 'الانزلاق S = (Ns-N)/Ns. عند الحمل الكامل يكون 1-5%.', reviewCategory: 'motors' },
 
-  /* ========== التحكم الكهربائي ========== */
-  {
-    id: 19,
-    category: 'control',
-    categoryName: 'التحكم الكهربائي',
-    question: 'ما معنى اختصار PLC؟',
-    options: [
-      'Power Line Carrier',
-      'Programmable Logic Controller',
-      'Power Load Control',
-      'Programmable Line Circuit'
-    ],
-    correct: 1,
-    explanation: 'PLC = Programmable Logic Controller: حاسوب صناعي يستخدم لأتمتة العمليات مثل خطوط الإنتاج والمصاعد.',
-    reviewCategory: 'control'
-  },
-  {
-    id: 20,
-    category: 'control',
-    categoryName: 'التحكم الكهربائي',
-    question: 'جهد التحكم الشائع في دوائر التحكم الصناعية هو:',
-    options: ['5 فولت', '12 فولت', '24 فولت', '110 فولت'],
-    correct: 2,
-    explanation: '24V DC هو الجهد القياسي الأكثر شيوعاً في دوائر التحكم الصناعية لأنه آمن ولا يحتاج ترخيصاً خاصاً للعمل عليه.',
-    reviewCategory: 'control'
-  },
+  /* ========== التحكم الكهربائي (10 أسئلة) ========== */
+  { id: 66, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'easy', question: 'PLC هو اختصار لـ:', options: ['Power Line Carrier', 'Programmable Logic Controller', 'Power Load Control', 'Programmable Line Circuit'], correct: 1, explanation: 'PLC = Programmable Logic Controller: متحكم منطقي مبرمج للأتمتة الصناعية.', reviewCategory: 'control' },
+  { id: 67, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'easy', question: 'جهد التحكم الصناعي الأكثر شيوعاً:', options: ['5VDC', '12VDC', '24VDC', '110VDC'], correct: 2, explanation: '24VDC هو المعيار الأكثر شيوعاً في دوائر التحكم الصناعي لأمانه وسهولة التعامل معه.', reviewCategory: 'control' },
+  { id: 68, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'medium', question: 'لغة برمجة PLC الأكثر استخداماً:', options: ['C++', 'Python', 'Ladder Diagram', 'Java'], correct: 2, explanation: 'Ladder Diagram هي اللغة الأكثر شيوعاً لبرمجة PLC لسهولتها وتشابهها مع دوائر الريليه.', reviewCategory: 'control' },
+  { id: 69, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'medium', question: 'SCADA تستخدم لـ:', options: ['التحكم المباشر فقط', 'المراقبة والتحكم عن بعد', 'قياس التيار فقط', 'توليد الطاقة'], correct: 1, explanation: 'SCADA نظام مراقبة وتحكم وجمع بيانات عن بعد للعمليات الصناعية.', reviewCategory: 'control' },
+  { id: 70, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'hard', question: 'دورة المسح Scan Cycle في PLC تتكون من:', options: ['قراءة فقط', 'قراءة - تنفيذ - كتابة', 'تنفيذ فقط', 'كتابة فقط'], correct: 1, explanation: 'دورة المسح: قراءة المداخل ← تنفيذ البرنامج ← تحديث المخارج. تتكرر باستمرار.', reviewCategory: 'control' },
+  { id: 71, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'medium', question: 'HMI تعني:', options: ['High Motor Interface', 'Human Machine Interface', 'High Magnetic Induction', 'Heavy Metal Industry'], correct: 1, explanation: 'HMI = Human Machine Interface: واجهة تفاعل بين الإنسان والآلة (شاشة لمس عادة).', reviewCategory: 'control' },
+  { id: 72, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'hard', question: 'PID Controller يستخدم لـ:', options: ['التحكم البسيط ON/OFF', 'التحكم الدقيق بالعمليات', 'الحماية فقط', 'الاتصالات'], correct: 1, explanation: 'متحكم PID يوفر تحكماً دقيقاً باستخدام التناسب والتكامل والتفاضل.', reviewCategory: 'control' },
+  { id: 73, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'medium', question: 'بروتوكول Modbus يستخدم في:', options: ['الاتصال بين أجهزة التحكم الصناعي', 'الإنترنت', 'الهاتف', 'الأقمار الصناعية'], correct: 0, explanation: 'Modbus بروتوكول اتصال تسلسلي شائع بين PLCs وأجهزة القياس وأنظمة SCADA.', reviewCategory: 'control' },
+  { id: 74, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'hard', question: 'الفرق بين المدخل الرقمي والتناظري في PLC:', options: ['لا فرق', 'الرقمي 0/1 فقط، التناظري إشارة مستمرة', 'التناظري أسرع', 'الرقمي للصوت فقط'], correct: 1, explanation: 'المدخل الرقمي: ON/OFF. المدخل التناظري: إشارة مستمرة 0-10V أو 4-20mA.', reviewCategory: 'control' },
+  { id: 75, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'hard', question: 'في VFD، تقليل التردد للنصف يخفض سرعة المحرك:', options: ['للربع', 'للنصف', 'للثلث', 'لا تتغير'], correct: 1, explanation: 'سرعة المحرك تتناسب طردياً مع التردد: N = 120f/P. نصف التردد = نصف السرعة.', reviewCategory: 'control' },
 
-  /* ========== الطاقة الشمسية ========== */
-  {
-    id: 21,
-    category: 'solar',
-    categoryName: 'الطاقة الشمسية',
-    question: 'ما هي وظيفة منظم الشحن في النظام الشمسي؟',
-    options: [
-      'تحويل DC إلى AC',
-      'حماية البطارية من الشحن الزائد والتفريغ',
-      'توليد الكهرباء من الشمس',
-      'تخزين الطاقة الكهربائية'
-    ],
-    correct: 1,
-    explanation: 'منظم الشحن (Charge Controller) يحمي البطارية من الشحن الزائد الذي قد يتلفها، ومن التفريغ العميق الذي يقصر عمرها.',
-    reviewCategory: 'solar'
-  },
-  {
-    id: 22,
-    category: 'solar',
-    categoryName: 'الطاقة الشمسية',
-    question: 'جهد النظام الشمسي المنزلي الأكثر شيوعاً هو:',
-    options: ['12 فولت', '24 فولت', '48 فولت', '220 فولت'],
-    correct: 1,
-    explanation: 'نظام 24V هو الأكثر شيوعاً للتطبيقات المنزلية المتوسطة. 12V للأنظمة الصغيرة جداً، و48V للأنظمة الكبيرة.',
-    reviewCategory: 'solar'
-  },
-  {
-    id: 23,
-    category: 'solar',
-    categoryName: 'الطاقة الشمسية',
-    question: 'ما هو الجهاز الذي يحول التيار المستمر إلى تيار متردد؟',
-    options: ['منظم الشحن', 'البطارية', 'الانفرتر (Inverter)', 'اللوح الشمسي'],
-    correct: 2,
-    explanation: 'الانفرتر (Inverter) هو الجهاز الذي يحول التيار المستمر DC القادم من البطاريات إلى تيار متردد AC صالح للاستخدام المنزلي.',
-    reviewCategory: 'solar'
-  },
+  /* ========== الطاقة الشمسية (10 أسئلة) ========== */
+  { id: 76, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'easy', question: 'وظيفة منظم الشحن في النظام الشمسي:', options: ['تحويل DC إلى AC', 'حماية البطارية من الشحن الزائد', 'توليد الكهرباء', 'تخزين الطاقة'], correct: 1, explanation: 'منظم الشحن يحمي البطارية من الشحن الزائد والتفريغ العميق.', reviewCategory: 'solar' },
+  { id: 77, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'easy', question: 'الجهاز الذي يحول DC إلى AC:', options: ['منظم الشحن', 'البطارية', 'الانفرتر', 'اللوح الشمسي'], correct: 2, explanation: 'الانفرتر (Inverter) يحول التيار المستمر من البطاريات إلى تيار متردد للاستخدام.', reviewCategory: 'solar' },
+  { id: 78, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'medium', question: 'MPPT أفضل من PWM لأنه:', options: ['أرخص', 'يستغل الجهد الزائد لزيادة التيار', 'أصغر حجماً', 'يعمل بدون بطارية'], correct: 1, explanation: 'MPPT يتتبع نقطة القدرة القصوى ويحول الجهد الزائد إلى تيار إضافي (كفاءة 95-99%).', reviewCategory: 'solar' },
+  { id: 79, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'medium', question: 'جهد النظام الشمسي المنزلي الأكثر شيوعاً:', options: ['12V', '24V', '48V', '220V'], correct: 1, explanation: 'نظام 24V الأكثر شيوعاً للمنازل المتوسطة. 48V للأنظمة الكبيرة.', reviewCategory: 'solar' },
+  { id: 80, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'hard', question: 'عمر الألواح الشمسية الافتراضي:', options: ['5 سنوات', '10 سنوات', '25 سنة', '50 سنة'], correct: 2, explanation: 'الألواح الشمسية تدوم 25-30 سنة مع ضمان أداء 80% بعد 25 سنة.', reviewCategory: 'solar' },
+  { id: 81, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'hard', question: 'DOD (عمق التفريغ) للبطارية يعني:', options: ['جهد البطارية', 'نسبة التفريغ المسموح بها', 'تيار الشحن', 'درجة الحرارة'], correct: 1, explanation: 'DOD = Depth of Discharge: نسبة الطاقة المسحوبة من البطارية. ليثيوم 80%، رصاص 50%.', reviewCategory: 'solar' },
+  { id: 82, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'medium', question: 'نظام ON-Grid الشمسي:', options: ['يعمل منفصلاً عن الشبكة', 'مربوط بالشبكة العمومية', 'يستخدم بطاريات فقط', 'لا يحتاج ألواحاً'], correct: 1, explanation: 'ON-Grid: مربوط بالشبكة. يبيع الفائض للشبكة. لا يحتاج بطاريات.', reviewCategory: 'solar' },
+  { id: 83, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'medium', question: 'كفاءة الألواح الشمسية التجارية:', options: ['5-10%', '15-22%', '40-50%', '70-80%'], correct: 1, explanation: 'كفاءة الألواح الشمسية التجارية 15-22%. Mono أعلى كفاءة من Poly.', reviewCategory: 'solar' },
+  { id: 84, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'hard', question: 'انفرتر الموجة الجيبية النقية ضروري لـ:', options: ['الإنارة فقط', 'الأجهزة الحساسة كالمحركات والطبية', 'جميع الأحمال', 'الشواحن فقط'], correct: 1, explanation: 'الأجهزة الحساسة (طبية، محركات، كمبيوترات) تحتاج موجة جيبية نقية.', reviewCategory: 'solar' },
+  { id: 85, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'hard', question: 'PSH (Peak Sun Hours) في المنطقة العربية:', options: ['1-2 ساعات', '3-4 ساعات', '5-7 ساعات', '10-12 ساعات'], correct: 2, explanation: 'المنطقة العربية تتمتع بـ 5-7 ساعات شمس مكافئة يومياً في المتوسط.', reviewCategory: 'solar' },
 
-  /* ========== السلامة المهنية ========== */
-  {
-    id: 24,
-    category: 'safety',
-    categoryName: 'السلامة المهنية',
-    question: 'ما معنى LOTO في إجراءات السلامة الكهربائية؟',
-    options: [
-      'Light On Time Off',
-      'Lock Out Tag Out',
-      'Low Overload Time Out',
-      'Line Output Transformer'
-    ],
-    correct: 1,
-    explanation: 'LOTO = Lock Out Tag Out: إجراء عزل مصادر الطاقة ووضع أقفال وبطاقات تحذيرية لضمان عدم إعادة التشغيل أثناء الصيانة.',
-    reviewCategory: 'safety'
-  },
-  {
-    id: 25,
-    category: 'safety',
-    categoryName: 'السلامة المهنية',
-    question: 'المسافة الآمنة الدنيا من خطوط الجهد العالي يجب أن تكون:',
-    options: ['متر واحد', '3 أمتار', '5 أمتار', '10 أمتار'],
-    correct: 1,
-    explanation: 'المسافة الآمنة الدنيا من خطوط الجهد العالي هي 3 أمتار، وتزداد بازدياد مستوى الجهد حسب المعايير المحلية.',
-    reviewCategory: 'safety'
-  },
-  {
-    id: 26,
-    category: 'safety',
-    categoryName: 'السلامة المهنية',
-    question: 'أهم خطوة قبل البدء بأي عمل كهربائي هي:',
-    options: [
-      'ارتداء القفازات فقط',
-      'فصل مصدر التيار والتأكد من فصله',
-      'العمل بسرعة',
-      'إخبار زميل فقط'
-    ],
-    correct: 1,
-    explanation: 'أهم خطوة هي فصل مصدر التيار تماماً والتأكد من فصله باستخدام جهاز اختبار الجهد قبل لمس أي موصل.',
-    reviewCategory: 'safety'
-  },
+  /* ========== السلامة المهنية (10 أسئلة) ========== */
+  { id: 86, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'easy', question: 'معنى LOTO:', options: ['Light On Time Off', 'Lock Out Tag Out', 'Low Overload Time Out', 'Line Output Transformer'], correct: 1, explanation: 'LOTO = Lock Out Tag Out: عزل الطاقة ووضع أقفال وبطاقات تحذير.', reviewCategory: 'safety' },
+  { id: 87, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'easy', question: 'التيار الذي قد يكون قاتلاً:', options: ['1mA', '10mA', '100mA', '1A'], correct: 2, explanation: 'تيار 100mA فأكثر يمر عبر القلب قد يكون قاتلاً.', reviewCategory: 'safety' },
+  { id: 88, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'medium', question: 'المسافة الآمنة من خطوط الجهد العالي:', options: ['1m', '3m', '10m', 'حسب مستوى الجهد'], correct: 3, explanation: 'المسافة الآمنة تزداد مع الجهد: من 3m للجهد المنخفض حتى 7m+ للعالي جداً.', reviewCategory: 'safety' },
+  { id: 89, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'medium', question: 'أهم إجراء قبل العمل على دائرة كهربائية:', options: ['ارتداء القفازات', 'فصل التيار واختبار الفصل', 'العمل بسرعة', 'إخبار الزملاء فقط'], correct: 1, explanation: 'يجب فصل التيار تماماً واختبار عدم وجود جهد قبل لمس أي موصل.', reviewCategory: 'safety' },
+  { id: 90, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'easy', question: 'طفاية الحريق المناسبة للحرائق الكهربائية:', options: ['ماء', 'CO2 أو بودرة جافة', 'رغوة', 'زيت'], correct: 1, explanation: 'CO2 أو البودرة الجافة مناسبة للحرائق الكهربائية. الماء خطر (يوصل الكهرباء).', reviewCategory: 'safety' },
+  { id: 91, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'hard', question: 'تصنيف القفازات العازلة Class 0:', options: ['حتى 500V', 'حتى 1000V', 'حتى 7500V', 'حتى 17000V'], correct: 1, explanation: 'Class 0: حتى 1000V. Class 1: حتى 7500V. يجب فحصها قبل كل استخدام.', reviewCategory: 'safety' },
+  { id: 92, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'hard', question: 'حدود الاقتراب الآمن (Arc Flash Boundary):', options: ['ثابتة لكل الجهود', 'تعتمد على تيار القصر وزمن الفصل', 'متر واحد دائماً', 'غير مهمة'], correct: 1, explanation: 'مسافة الأمان من القوس الكهربائي تحسب حسب طاقة القوس: تيار القصر × زمن الفصل.', reviewCategory: 'safety' },
+  { id: 93, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'medium', question: 'في LOTO، من يزيل القفل؟', options: ['أي شخص', 'المشرف فقط', 'صاحب القفل شخصياً', 'فني الأمن'], correct: 2, explanation: 'القفل الشخصي لا يزيله إلا صاحبه. هذا إجراء أمان أساسي.', reviewCategory: 'safety' },
+  { id: 94, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'medium', question: 'علامة التحذير من خطر كهربائي لونها:', options: ['أزرق', 'أخضر', 'أصفر مع مثلث أسود', 'أبيض'], correct: 2, explanation: 'علامات التحذير: خلفية صفراء، مثلث أسود، رمز الخطر بالأسود.', reviewCategory: 'safety' },
+  { id: 95, category: 'safety', categoryName: 'السلامة المهنية', difficulty: 'hard', question: 'الإسعاف الأولي لمصاب بصدمة كهربائية:', options: ['سكب ماء عليه', 'فصل المصدر أولاً ثم CPR إذا لزم', 'تحريكه فوراً', 'إعطاؤه ماء للشرب'], correct: 1, explanation: '1- افصل المصدر. 2- اتصل بالإسعاف. 3- افحص التنفس والنبض. 4- ابدأ CPR إذا لزم.', reviewCategory: 'safety' },
 
-  /* ========== أسئلة إضافية متنوعة ========== */
-  {
-    id: 27,
-    category: 'basics',
-    categoryName: 'أساسيات الكهرباء',
-    question: 'في دائرة توازي، كيف تحسب المقاومة الكلية؟',
-    options: [
-      'مجموع المقاومات',
-      '1/R_total = 1/R1 + 1/R2 + ...',
-      'حاصل ضرب المقاومات',
-      'أكبر مقاومة فقط'
-    ],
-    correct: 1,
-    explanation: 'في دوائر التوازي: مقلوب المقاومة الكلية = مجموع مقلوبات المقاومات الفردية. المقاومة الكلية تكون أقل من أصغر مقاومة.',
-    reviewCategory: 'basics'
-  },
-  {
-    id: 28,
-    category: 'electronics',
-    categoryName: 'الإلكترونيات',
-    question: 'ما هي وظيفة المكثف في دائرة مصدر القدرة؟',
-    options: ['تضخيم الجهد', 'تنعيم الجهد بعد التقويم', 'زيادة التردد', 'خفض التيار'],
-    correct: 1,
-    explanation: 'المكثف في مصادر القدرة يقوم بتنعيم (ترشيح) الجهد المتردد بعد تقويمه، لتقليل التموج والحصول على جهد مستمر نظيف.',
-    reviewCategory: 'electronics'
-  },
-  {
-    id: 29,
-    category: 'control',
-    categoryName: 'التحكم الكهربائي',
-    question: 'لغة البرمجة الأكثر شيوعاً للـ PLC هي:',
-    options: ['C++', 'Python', 'Ladder Diagram', 'Java'],
-    correct: 2,
-    explanation: 'Ladder Diagram (مخطط السلم) هي اللغة الأكثر شيوعاً لبرمجة PLC لأنها تشبه مخططات الريليه التقليدية ويسهل فهمها.',
-    reviewCategory: 'control'
-  },
-  {
-    id: 30,
-    category: 'motors',
-    categoryName: 'المحركات والمولدات',
-    question: 'المحرك الحثي يعمل على مبدأ:',
-    options: [
-      'التوصيل المباشر',
-      'الحث الكهرومغناطيسي',
-      'التأثير الكهروضوئي',
-      'التفريغ الكهربائي'
-    ],
-    correct: 1,
-    explanation: 'المحرك الحثي يعمل على مبدأ الحث الكهرومغناطيسي، حيث يولد المجال المغناطيسي الدوار في العضو الثابت تيارات حثية في العضو الدوار.',
-    reviewCategory: 'motors'
-  }
+  /* ========== أسئلة متنوعة (5 أسئلة) ========== */
+  { id: 96, category: 'basics', categoryName: 'أساسيات الكهرباء', difficulty: 'hard', question: 'في مجزئ الجهد R1=1kΩ, R2=2kΩ, Vin=12V، قيمة Vout:', options: ['4V', '6V', '8V', '10V'], correct: 2, explanation: 'Vout = Vin × R2/(R1+R2) = 12 × 2/(1+2) = 12 × 2/3 = 8V', reviewCategory: 'basics' },
+  { id: 97, category: 'electronics', categoryName: 'الإلكترونيات', difficulty: 'hard', question: 'مقاومة LED على 9V: LED Vf=2V, If=20mA:', options: ['100Ω', '220Ω', '350Ω', '470Ω'], correct: 2, explanation: 'R = (Vs-Vf)/If = (9-2)/0.02 = 7/0.02 = 350Ω', reviewCategory: 'electronics' },
+  { id: 98, category: 'motors', categoryName: 'المحركات والمولدات', difficulty: 'hard', question: 'عدد أقطاب محرك سرعته التزامنية 3000 RPM على 50Hz:', options: ['2', '4', '6', '8'], correct: 0, explanation: 'P = 120×f/Ns = 120×50/3000 = 2 قطب', reviewCategory: 'motors' },
+  { id: 99, category: 'solar', categoryName: 'الطاقة الشمسية', difficulty: 'hard', question: 'سعة بطارية لمنزل يستهلك 5kWh/يوم، 48V، DOD=0.8، يومين:', options: ['100Ah', '200Ah', '260Ah', '500Ah'], correct: 2, explanation: 'Ah = (5000×2)/(48×0.8) = 10000/38.4 = 260Ah', reviewCategory: 'solar' },
+  { id: 100, category: 'control', categoryName: 'التحكم الكهربائي', difficulty: 'hard', question: 'سرعة اتصال Profibus القياسية:', options: ['9600 bps', '1.5 Mbps', '100 Mbps', '1 Gbps'], correct: 1, explanation: 'Profibus DP يعمل بسرعات تصل إلى 12 Mbps، والسرعة القياسية 1.5 Mbps.', reviewCategory: 'control' }
 ];
