@@ -1,12 +1,11 @@
 /* ==========================================================================
-   DrDer Electronic - Main Application Logic v4.1
-   Fixed: Simulator page rendering and initialization
+   DrDer Electronic - Main Application Logic v4.2
+   Fixed: Library page shows different content from home page
    ========================================================================== */
 
 (function () {
   'use strict';
 
-  /* ========== Constants ========== */
   var PAGE_MAP = {
     home: { containerId: 'page-home', tabSelector: '[data-nav="home"]' },
     category: { containerId: 'page-category', tabSelector: null },
@@ -22,7 +21,6 @@
   var TOAST_DURATION = 3000;
   var MAX_HISTORY_STACK = 50;
 
-  /* ========== State ========== */
   var currentPage = 'home';
   var currentCategoryId = null;
   var deferredPrompt = null;
@@ -31,7 +29,6 @@
   var historyStack = [{ page: 'home', data: null }];
   var keyboardListener = null;
 
-  /* ========== DOM Cache ========== */
   var dom = {
     btnInstall: null,
     mainContent: null,
@@ -39,9 +36,12 @@
     toastContainer: null
   };
 
-  /* ========== Initialize ========== */
   function init() {
-    cacheDomElements();
+    dom.btnInstall = document.getElementById('btnInstall');
+    dom.mainContent = document.getElementById('mainContent');
+    dom.calcModalContainer = document.getElementById('calcModalContainer');
+    dom.toastContainer = document.getElementById('toastContainer');
+
     registerServiceWorker();
     setupGlobalEventDelegation();
     setupInstallListeners();
@@ -54,113 +54,81 @@
     document.addEventListener('keydown', keyboardListener);
   }
 
-  function cacheDomElements() {
-    dom.btnInstall = document.getElementById('btnInstall');
-    dom.mainContent = document.getElementById('mainContent');
-    dom.calcModalContainer = document.getElementById('calcModalContainer');
-    dom.toastContainer = document.getElementById('toastContainer');
-  }
-
-  /* ========== Service Worker ========== */
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
-
-    navigator.serviceWorker
-      .register('./sw.js', { scope: './' })
-      .then(function (registration) {
-        console.log('[SW] Registered:', registration.scope);
-        registration.addEventListener('updatefound', function () {
-          var newWorker = registration.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener('statechange', function () {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              showToast('🔄 تحديث جديد متاح! سيتم التحديث تلقائياً.', 'info');
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(function (reg) {
+        console.log('[SW] Registered');
+        reg.addEventListener('updatefound', function () {
+          var w = reg.installing;
+          if (!w) return;
+          w.addEventListener('statechange', function () {
+            if (w.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('🔄 تحديث جديد متاح!', 'info');
             }
           });
         });
       })
-      .catch(function (err) {
-        console.warn('[SW] Registration failed:', err.message);
-      });
+      .catch(function (err) { console.warn('[SW] Failed:', err.message); });
   }
 
-  /* ========== Global Event Delegation ========== */
   function setupGlobalEventDelegation() {
     document.body.addEventListener('click', function (e) {
-      var navButton = e.target.closest('[data-nav]');
-      if (navButton && !navButton.closest('#calcModalContainer')) {
+      var navBtn = e.target.closest('[data-nav]');
+      if (navBtn && !navBtn.closest('#calcModalContainer')) {
         e.preventDefault();
-        var page = navButton.dataset.nav;
-        if (page) navigateTo(page, null);
+        navigateTo(navBtn.dataset.nav, null);
         return;
       }
-
-      var categoryCard = e.target.closest('.category-card');
-      if (categoryCard && categoryCard.dataset.catId) {
-        navigateTo('category', categoryCard.dataset.catId);
+      var catCard = e.target.closest('.category-card');
+      if (catCard && catCard.dataset.catId) {
+        navigateTo('category', catCard.dataset.catId);
         return;
       }
-
       var calcCard = e.target.closest('.calc-card');
       if (calcCard && calcCard.dataset.calcId) {
         openCalculator(calcCard.dataset.calcId);
         return;
       }
-
-      var libraryCard = e.target.closest('.library-card');
-      if (libraryCard && libraryCard.dataset.catId) {
-        navigateTo('category', libraryCard.dataset.catId);
+      var libCard = e.target.closest('.library-card');
+      if (libCard && libCard.dataset.catId) {
+        navigateTo('category', libCard.dataset.catId);
         return;
       }
-
-      var breadcrumbBtn = e.target.closest('.breadcrumb span[data-breadcrumb]');
-      if (breadcrumbBtn) {
-        var target = breadcrumbBtn.dataset.breadcrumb;
-        if (target === 'home') navigateTo('home', null);
-        else if (target === 'category') navigateTo('category', currentCategoryId);
+      var breadBtn = e.target.closest('.breadcrumb span[data-breadcrumb]');
+      if (breadBtn) {
+        var t = breadBtn.dataset.breadcrumb;
+        if (t === 'home') navigateTo('home', null);
+        else if (t === 'category') navigateTo('category', currentCategoryId);
         return;
       }
-
-      var reviewLink = e.target.closest('.review-suggestion li[data-category]');
-      if (reviewLink) {
-        navigateTo('category', reviewLink.dataset.category);
+      var revLink = e.target.closest('.review-suggestion li[data-category]');
+      if (revLink) {
+        navigateTo('category', revLink.dataset.category);
         return;
       }
     });
   }
 
-  /* ========== Install Handling ========== */
   function setupInstallListeners() {
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       deferredPrompt = e;
       showInstallButton();
     });
-
     window.addEventListener('appinstalled', function () {
       hideInstallButton();
       deferredPrompt = null;
-      showToast('✅ تم تثبيت التطبيق بنجاح', 'success');
+      showToast('✅ تم تثبيت التطبيق', 'success');
     });
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      hideInstallButton();
-    }
-
-    if (dom.btnInstall) {
-      dom.btnInstall.addEventListener('click', handleInstallClick);
-    }
-  }
-
-  function handleInstallClick() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(function (result) {
-      if (result.outcome === 'accepted') {
-        hideInstallButton();
-        showToast('✅ جاري تثبيت التطبيق...', 'success');
-      }
-      deferredPrompt = null;
+    if (window.matchMedia('(display-mode: standalone)').matches) hideInstallButton();
+    if (dom.btnInstall) dom.btnInstall.addEventListener('click', function () {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function (r) {
+        if (r.outcome === 'accepted') { hideInstallButton(); showToast('✅ جاري التثبيت...', 'success'); }
+        deferredPrompt = null;
+      });
     });
   }
 
@@ -178,35 +146,30 @@
     installButtonVisible = false;
   }
 
-  /* ========== Initial Route ========== */
   function handleInitialRoute() {
     var hash = window.location.hash;
     if (hash) {
       var parts = hash.replace('#', '').split('/');
-      var page = parts[0];
-      var data = parts.length > 1 ? parts[1] : null;
-      if (PAGE_MAP[page]) {
-        navigateTo(page, data, true);
+      if (PAGE_MAP[parts[0]]) {
+        navigateTo(parts[0], parts[1] || null, true);
         return;
       }
     }
     history.replaceState({ page: 'home', data: null }, '', '#home');
   }
 
-  /* ========== History API ========== */
   function pushHistory(page, data) {
-    var state = { page: page, data: data, timestamp: Date.now() };
-    historyStack.push(state);
+    var s = { page: page, data: data, timestamp: Date.now() };
+    historyStack.push(s);
     if (historyStack.length > MAX_HISTORY_STACK) historyStack.shift();
-    var url = data ? '#' + page + '/' + data : '#' + page;
-    history.pushState(state, '', url);
+    history.pushState(s, '', data ? '#' + page + '/' + data : '#' + page);
   }
 
-  function handlePopState(event) {
+  function handlePopState(e) {
     if (isNavigating) return;
-    if (event.state && event.state.page) {
+    if (e.state && e.state.page) {
       isNavigating = true;
-      navigateTo(event.state.page, event.state.data, true);
+      navigateTo(e.state.page, e.state.data, true);
       isNavigating = false;
     } else {
       isNavigating = true;
@@ -215,65 +178,45 @@
     }
   }
 
-  /* ========== Main Navigation ========== */
-  function navigateTo(page, data, isPopState) {
-    if (isNavigating && !isPopState) return;
-    var pageConfig = PAGE_MAP[page];
-    if (!pageConfig) { navigateTo('home', null); return; }
-
+  function navigateTo(page, data, isPop) {
+    if (isNavigating && !isPop) return;
+    var cfg = PAGE_MAP[page];
+    if (!cfg) { navigateTo('home', null); return; }
     isNavigating = true;
     currentPage = page;
     if (page === 'category') currentCategoryId = data;
-
     cleanupCurrentPage();
     switchPage(page);
     updateActiveTab(page);
-
-    if (!isPopState) pushHistory(page, data);
-
+    if (!isPop) pushHistory(page, data);
     renderPage(page, data);
     window.scrollTo({ top: 0, behavior: 'instant' });
-
-    requestAnimationFrame(function () {
-      isNavigating = false;
-    });
+    requestAnimationFrame(function () { isNavigating = false; });
   }
 
   function switchPage(page) {
-    var config = PAGE_MAP[page];
-    var targetId = config.containerId;
-    var allPages = document.querySelectorAll('.page');
-    for (var i = 0; i < allPages.length; i++) {
-      if (allPages[i].id === targetId) {
-        allPages[i].classList.add('active');
-      } else {
-        allPages[i].classList.remove('active');
-      }
+    var tid = PAGE_MAP[page].containerId;
+    var pages = document.querySelectorAll('.page');
+    for (var i = 0; i < pages.length; i++) {
+      pages[i].classList.toggle('active', pages[i].id === tid);
     }
   }
 
   function updateActiveTab(page) {
-    var config = PAGE_MAP[page];
-    var tabSelector = config.tabSelector;
-    var allTabs = document.querySelectorAll('.nav-tab');
-    for (var i = 0; i < allTabs.length; i++) {
-      allTabs[i].classList.remove('active');
-      allTabs[i].setAttribute('aria-selected', 'false');
+    var sel = PAGE_MAP[page].tabSelector;
+    var tabs = document.querySelectorAll('.nav-tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.remove('active');
+      tabs[i].setAttribute('aria-selected', 'false');
     }
-    if (tabSelector) {
-      var activeTab = document.querySelector('.nav-tab' + tabSelector);
-      if (activeTab) {
-        activeTab.classList.add('active');
-        activeTab.setAttribute('aria-selected', 'true');
-      }
+    if (sel) {
+      var at = document.querySelector('.nav-tab' + sel);
+      if (at) { at.classList.add('active'); at.setAttribute('aria-selected', 'true'); }
     }
   }
 
-  function cleanupCurrentPage() {
-    closeCalcModal();
-  }
+  function cleanupCurrentPage() { closeCalcModal(); }
 
-  /* ========== Page Renderers ========== */
   function renderPage(page, data) {
     switch (page) {
       case 'home': renderHomePage(); break;
@@ -285,224 +228,175 @@
       case 'projects': renderProjectsPage(); break;
       case 'library': renderLibraryPage(); break;
       case 'dictionary': renderDictionaryPage(); break;
-      default: renderHomePage();
     }
   }
 
-  /* ========== Home Page ========== */
   function renderHomePage() {
-    var container = document.getElementById('page-home');
-    if (!container) return;
-
-    var frag = document.createDocumentFragment();
-    var hero = document.createElement('div');
-    hero.className = 'hero-section';
-    hero.innerHTML = '<h1 class="hero-title">⚡ DrDer Electronic</h1><p class="hero-subtitle">مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين</p>';
-    frag.appendChild(hero);
-
-    var grid = document.createElement('div');
-    grid.className = 'categories-grid';
-
+    var c = document.getElementById('page-home');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var h = document.createElement('div');
+    h.className = 'hero-section';
+    h.innerHTML = '<h1 class="hero-title">⚡ DrDer Electronic</h1><p class="hero-subtitle">مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين</p>';
+    f.appendChild(h);
+    var g = document.createElement('div');
+    g.className = 'categories-grid';
     APP_DATA.categories.forEach(function (cat) {
       var card = document.createElement('div');
       card.className = 'category-card';
       card.setAttribute('data-cat-id', cat.id);
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.setAttribute('aria-label', cat.title + ' - ' + cat.lessons.length + ' دروس');
-      card.innerHTML = '<span class="cat-icon" aria-hidden="true">' + cat.icon + '</span><div class="cat-title">' + cat.title + '</div><div class="cat-count">' + cat.lessons.length + ' دروس</div>';
-      grid.appendChild(card);
+      card.innerHTML = '<span class="cat-icon">' + cat.icon + '</span><div class="cat-title">' + cat.title + '</div><div class="cat-count">' + cat.lessons.length + ' دروس</div>';
+      g.appendChild(card);
     });
-
-    frag.appendChild(grid);
-    container.innerHTML = '';
-    container.appendChild(frag);
+    f.appendChild(g);
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
-  /* ========== Category Page ========== */
-  function renderCategoryPage(categoryId) {
-    var cat = APP_DATA.categories.find(function (c) { return c.id === categoryId; });
+  function renderCategoryPage(catId) {
+    var cat = APP_DATA.categories.find(function (x) { return x.id === catId; });
     if (!cat) { navigateTo('home', null); return; }
-
-    currentCategoryId = categoryId;
-    var container = document.getElementById('page-category');
-    if (!container) return;
-
-    var frag = document.createDocumentFragment();
-    var breadcrumb = document.createElement('div');
-    breadcrumb.className = 'breadcrumb';
-    breadcrumb.innerHTML = '<span data-breadcrumb="home" role="button" tabindex="0">🏠 الرئيسية</span><span class="separator" aria-hidden="true">›</span><span>' + cat.icon + ' ' + cat.title + '</span>';
-    frag.appendChild(breadcrumb);
-
-    var list = document.createElement('div');
-    list.className = 'lesson-list';
-
-    cat.lessons.forEach(function (lesson, index) {
-      var param = cat.id + '|' + lesson.id;
+    currentCategoryId = catId;
+    var c = document.getElementById('page-category');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var b = document.createElement('div');
+    b.className = 'breadcrumb';
+    b.innerHTML = '<span data-breadcrumb="home" role="button" tabindex="0">🏠 الرئيسية</span><span class="separator">›</span><span>' + cat.icon + ' ' + cat.title + '</span>';
+    f.appendChild(b);
+    var l = document.createElement('div');
+    l.className = 'lesson-list';
+    cat.lessons.forEach(function (les, i) {
+      var param = cat.id + '|' + les.id;
       var item = document.createElement('div');
       item.className = 'lesson-item';
       item.setAttribute('role', 'button');
       item.setAttribute('tabindex', '0');
-      item.setAttribute('aria-label', 'الدرس ' + (index + 1) + ': ' + lesson.title);
-      item.innerHTML = '<div class="lesson-num" aria-hidden="true">' + (index + 1) + '</div><div class="lesson-info"><h4>' + lesson.title + '</h4><p>' + lesson.keyPoints.slice(0, 3).join(' • ') + '</p></div><span class="lesson-arrow" aria-hidden="true">◀</span>';
+      item.innerHTML = '<div class="lesson-num">' + (i + 1) + '</div><div class="lesson-info"><h4>' + les.title + '</h4><p>' + les.keyPoints.slice(0, 3).join(' • ') + '</p></div><span class="lesson-arrow">◀</span>';
       item.addEventListener('click', function () { navigateTo('lesson', param); });
-      item.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateTo('lesson', param); }
-      });
-      list.appendChild(item);
+      l.appendChild(item);
     });
-
-    frag.appendChild(list);
-    container.innerHTML = '';
-    container.appendChild(frag);
+    f.appendChild(l);
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
-  /* ========== Lesson Detail ========== */
   function renderLessonDetail(param) {
     if (!param) { navigateTo('home', null); return; }
     var parts = param.split('|');
-    var catId = parts[0];
-    var lessonId = parts[1];
-    var cat = APP_DATA.categories.find(function (c) { return c.id === catId; });
+    var cat = APP_DATA.categories.find(function (x) { return x.id === parts[0]; });
     if (!cat) { navigateTo('home', null); return; }
-    var lesson = cat.lessons.find(function (l) { return l.id === lessonId; });
-    if (!lesson) { navigateTo('category', catId); return; }
-
-    var container = document.getElementById('page-lesson');
-    if (!container) return;
-
-    var keyPointsHtml = lesson.keyPoints.map(function (kp) { return '<span class="key-point">' + kp + '</span>'; }).join('');
-    var frag = document.createDocumentFragment();
-
-    var breadcrumb = document.createElement('div');
-    breadcrumb.className = 'breadcrumb';
-    breadcrumb.innerHTML = '<span data-breadcrumb="home" role="button" tabindex="0">🏠 الرئيسية</span><span class="separator" aria-hidden="true">›</span><span data-breadcrumb="category" role="button" tabindex="0">' + cat.icon + ' ' + cat.title + '</span><span class="separator" aria-hidden="true">›</span><span>' + lesson.title + '</span>';
-    frag.appendChild(breadcrumb);
-
-    var detail = document.createElement('div');
-    detail.className = 'lesson-detail';
-    detail.innerHTML = '<h3>' + lesson.title + '</h3><div class="lesson-content"><p>' + lesson.content + '</p></div><div class="key-points">' + keyPointsHtml + '</div><div class="formula-box"><div class="formula" dir="ltr">' + lesson.formula + '</div><div class="formula-desc">' + lesson.formulaDesc + '</div></div>';
-    frag.appendChild(detail);
-
-    var backBtn = document.createElement('button');
-    backBtn.className = 'btn btn-outline';
-    backBtn.style.marginTop = '12px';
-    backBtn.textContent = '↩ العودة للدروس';
-    backBtn.addEventListener('click', function () { navigateTo('category', cat.id); });
-    frag.appendChild(backBtn);
-
-    container.innerHTML = '';
-    container.appendChild(frag);
+    var les = cat.lessons.find(function (x) { return x.id === parts[1]; });
+    if (!les) { navigateTo('category', parts[0]); return; }
+    var c = document.getElementById('page-lesson');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var b = document.createElement('div');
+    b.className = 'breadcrumb';
+    b.innerHTML = '<span data-breadcrumb="home" role="button" tabindex="0">🏠 الرئيسية</span><span class="separator">›</span><span data-breadcrumb="category" role="button" tabindex="0">' + cat.icon + ' ' + cat.title + '</span><span class="separator">›</span><span>' + les.title + '</span>';
+    f.appendChild(b);
+    var d = document.createElement('div');
+    d.className = 'lesson-detail';
+    d.innerHTML = '<h3>' + les.title + '</h3><div class="lesson-content"><p>' + les.content + '</p></div><div class="key-points">' + les.keyPoints.map(function (k) { return '<span class="key-point">' + k + '</span>'; }).join('') + '</div><div class="formula-box"><div class="formula" dir="ltr">' + les.formula + '</div><div class="formula-desc">' + les.formulaDesc + '</div></div>';
+    f.appendChild(d);
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-outline';
+    btn.style.marginTop = '12px';
+    btn.textContent = '↩ العودة للدروس';
+    btn.addEventListener('click', function () { navigateTo('category', cat.id); });
+    f.appendChild(btn);
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
-  /* ========== Simulator Page ========== */
   function renderSimulatorPage() {
-    var container = document.getElementById('page-simulator');
-    if (!container) return;
-
+    var c = document.getElementById('page-simulator');
+    if (!c) return;
     if (typeof window.getSimulatorHTML === 'function') {
-      container.innerHTML = window.getSimulatorHTML();
-
+      c.innerHTML = window.getSimulatorHTML();
       setTimeout(function () {
-        if (typeof window.initSimulator === 'function') {
-          window.initSimulator();
-        }
+        if (typeof window.initSimulator === 'function') window.initSimulator();
       }, 300);
     } else {
-      container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:3rem;margin-bottom:16px;">🔧</div><p style="font-size:1.1rem;">⏳ جاري تحميل المحاكي...</p><p style="font-size:0.85rem;margin-top:8px;">تأكد من وجود جميع ملفات المحاكي في مجلد simulator/</p></div>';
+      c.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);"><p>⏳ جاري تحميل المحاكي...</p></div>';
     }
   }
 
-  /* ========== Calculators Page ========== */
   function renderCalculatorsPage() {
-    var container = document.getElementById('page-calculators');
-    if (!container) return;
-
-    var frag = document.createDocumentFragment();
-    var title = document.createElement('h2');
-    title.style.marginBottom = '16px';
-    title.textContent = '🧮 الحاسبات الهندسية';
-    frag.appendChild(title);
-
-    var grid = document.createElement('div');
-    grid.className = 'calc-grid';
-
+    var c = document.getElementById('page-calculators');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var t = document.createElement('h2');
+    t.style.marginBottom = '16px';
+    t.textContent = '🧮 الحاسبات الهندسية';
+    f.appendChild(t);
+    var g = document.createElement('div');
+    g.className = 'calc-grid';
     APP_DATA.calculators.forEach(function (calc) {
       var card = document.createElement('div');
       card.className = 'calc-card';
       card.setAttribute('data-calc-id', calc.id);
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.setAttribute('aria-label', calc.name);
-      card.innerHTML = '<span class="calc-icon" aria-hidden="true">' + calc.icon + '</span><div class="calc-name">' + calc.name + '</div><div class="calc-desc">' + (calc.desc || '') + '</div>';
-      grid.appendChild(card);
+      card.innerHTML = '<span class="calc-icon">' + calc.icon + '</span><div class="calc-name">' + calc.name + '</div><div class="calc-desc">' + (calc.desc || '') + '</div>';
+      g.appendChild(card);
     });
-
-    frag.appendChild(grid);
-    container.innerHTML = '';
-    container.appendChild(frag);
+    f.appendChild(g);
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
-  /* ========== Calculator Modal ========== */
   function openCalculator(calcId) {
-    var calc = APP_DATA.calculators.find(function (c) { return c.id === calcId; });
+    var calc = APP_DATA.calculators.find(function (x) { return x.id === calcId; });
     if (!calc) return;
-
-    var fieldsHtml = getCalculatorFields(calcId);
-    if (!fieldsHtml) { showToast('⚠️ الحاسبة قيد التطوير', 'error'); return; }
-
+    var fh = getCalculatorFields(calcId);
+    if (!fh) { showToast('⚠️ الحاسبة قيد التطوير', 'error'); return; }
     var overlay = document.createElement('div');
     overlay.className = 'calc-modal-overlay';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', calc.name);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeCalcModal(); });
-
     var modal = document.createElement('div');
     modal.className = 'calc-modal';
-    modal.innerHTML = '<h3>' + calc.icon + ' ' + calc.name + '</h3>' + fieldsHtml + '<div class="calc-result" id="calcResult"></div><div class="calc-error" id="calcError"></div>';
-
-    var calcBtn = document.createElement('button');
-    calcBtn.className = 'btn btn-primary btn-block';
-    calcBtn.style.marginTop = '12px';
-    calcBtn.textContent = '🧮 احسب';
-    calcBtn.addEventListener('click', function () { calculateResult(calcId); });
-    modal.appendChild(calcBtn);
-
-    var closeBtn = document.createElement('button');
-    closeBtn.className = 'btn btn-outline btn-block';
-    closeBtn.style.marginTop = '8px';
-    closeBtn.textContent = 'إغلاق';
-    closeBtn.addEventListener('click', closeCalcModal);
-    modal.appendChild(closeBtn);
-
+    modal.innerHTML = '<h3>' + calc.icon + ' ' + calc.name + '</h3>' + fh + '<div class="calc-result" id="calcResult"></div><div class="calc-error" id="calcError"></div>';
+    var cb = document.createElement('button');
+    cb.className = 'btn btn-primary btn-block';
+    cb.style.marginTop = '12px';
+    cb.textContent = '🧮 احسب';
+    cb.addEventListener('click', function () { calculateResult(calcId); });
+    modal.appendChild(cb);
+    var cl = document.createElement('button');
+    cl.className = 'btn btn-outline btn-block';
+    cl.style.marginTop = '8px';
+    cl.textContent = 'إغلاق';
+    cl.addEventListener('click', closeCalcModal);
+    modal.appendChild(cl);
     overlay.appendChild(modal);
     dom.calcModalContainer.innerHTML = '';
     dom.calcModalContainer.appendChild(overlay);
     dom.calcModalContainer.removeAttribute('hidden');
-
     setTimeout(function () {
-      var firstInput = overlay.querySelector('input');
-      if (firstInput) firstInput.focus();
+      var fi = overlay.querySelector('input');
+      if (fi) fi.focus();
     }, 150);
   }
 
-  function getCalculatorFields(calcId) {
-    var fields = {
-      ohm: '<div class="calc-field"><label>الجهد V (فولت)</label><input type="number" id="calcV" placeholder="أدخل الجهد" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>التيار I (أمبير)</label><input type="number" id="calcI" placeholder="أدخل التيار" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>المقاومة R (أوم)</label><input type="number" id="calcR" placeholder="أدخل المقاومة" inputmode="decimal" min="0" step="any"></div><p style="color:var(--text-muted);font-size:0.8rem;text-align:center;">أدخل قيمتين لتحصل على الثالثة</p>',
-      power: '<div class="calc-field"><label>القدرة P (واط)</label><input type="number" id="calcP" placeholder="أدخل القدرة" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>الجهد V (فولت)</label><input type="number" id="calcV" placeholder="أدخل الجهد" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>التيار I (أمبير)</label><input type="number" id="calcI" placeholder="أدخل التيار" inputmode="decimal" min="0" step="any"></div><p style="color:var(--text-muted);font-size:0.8rem;text-align:center;">P = V × I</p>',
-      cable: '<div class="calc-field"><label>تيار الحمل I (أمبير)</label><input type="number" id="calcCI" placeholder="أدخل التيار" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>طول الكابل L (متر)</label><input type="number" id="calcCL" placeholder="أدخل الطول" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>الهبوط المسموح ΔV%</label><input type="number" id="calcCV" value="3" min="0.1" max="20" step="any"></div>',
-      breaker: '<div class="calc-field"><label>تيار الحمل I (أمبير)</label><input type="number" id="calcBI" placeholder="أدخل تيار الحمل" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>نوع الحمل</label><select id="calcBType"><option value="1.25">حمل عادي</option><option value="1.5">محرك صغير</option><option value="1.75">محرك كبير</option><option value="2">حمل ثقيل</option></select></div>',
-      voltdrop: '<div class="calc-field"><label>تيار الحمل I (أمبير)</label><input type="number" id="calcVDI" placeholder="أدخل التيار" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>طول الكابل L (متر)</label><input type="number" id="calcVDL" placeholder="أدخل الطول" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>مساحة المقطع A (mm²)</label><input type="number" id="calcVDA" placeholder="أدخل مساحة المقطع" inputmode="decimal" min="0.1" step="any"></div>',
-      pf: '<div class="calc-field"><label>القدرة الفعالة P (واط)</label><input type="number" id="calcPFP" placeholder="أدخل P" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>القدرة الظاهرية S (VA)</label><input type="number" id="calcPFS" placeholder="أدخل S" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>القدرة غير الفعالة Q (VAR)</label><input type="number" id="calcPFQ" placeholder="أدخل Q" inputmode="decimal" min="0" step="any"></div><p style="color:var(--text-muted);font-size:0.8rem;text-align:center;">أدخل قيمتين لتحصل على الثالثة ومعامل القدرة</p>',
-      transformer: '<div class="calc-field"><label>الجهد الابتدائي V1 (فولت)</label><input type="number" id="calcV1" placeholder="أدخل V1" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>الجهد الثانوي V2 (فولت)</label><input type="number" id="calcV2" placeholder="أدخل V2" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>التيار الابتدائي I1 (أمبير) - اختياري</label><input type="number" id="calcI1" placeholder="أدخل I1" inputmode="decimal" min="0" step="any"></div>',
-      solar: '<div class="calc-field"><label>الاستهلاك اليومي (واط.ساعة)</label><input type="number" id="calcWh" placeholder="أدخل الاستهلاك" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>جهد النظام V</label><select id="calcSV"><option value="12">12V</option><option value="24" selected>24V</option><option value="48">48V</option></select></div><div class="calc-field"><label>ساعات الشمس الذروة</label><input type="number" id="calcSH" value="5" min="1" max="12" step="any"></div>',
-      motor: '<div class="calc-field"><label>القدرة P (كيلوواط)</label><input type="number" id="calcMP" placeholder="أدخل القدرة" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>الجهد V (فولت)</label><input type="number" id="calcMV" placeholder="أدخل الجهد" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>معامل القدرة PF</label><input type="number" id="calcMPF" value="0.85" min="0.1" max="1" step="0.01"></div>',
-      led: '<div class="calc-field"><label>جهد المصدر Vs (فولت)</label><input type="number" id="calcLVs" placeholder="أدخل جهد المصدر" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>جهد LED الأمامي Vf (فولت)</label><input type="number" id="calcLVf" value="2" min="0" step="any"></div><div class="calc-field"><label>تيار LED المطلوب If (مللي أمبير)</label><input type="number" id="calcLIf" value="20" min="1" step="any"></div>',
-      rc: '<div class="calc-field"><label>المقاومة R (أوم)</label><input type="number" id="calcRCR" placeholder="أدخل المقاومة" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>السعة C (ميكروفاراد)</label><input type="number" id="calcRCC" placeholder="أدخل السعة" inputmode="decimal" min="0" step="any"></div>',
-      voltage_divider: '<div class="calc-field"><label>جهد الدخل Vin (فولت)</label><input type="number" id="calcVDVin" placeholder="أدخل جهد الدخل" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>المقاومة R1 (أوم)</label><input type="number" id="calcVDR1" placeholder="أدخل R1" inputmode="decimal" min="0" step="any"></div><div class="calc-field"><label>المقاومة R2 (أوم)</label><input type="number" id="calcVDR2" placeholder="أدخل R2" inputmode="decimal" min="0" step="any"></div>'
+  function getCalculatorFields(id) {
+    var F = {
+      ohm: '<div class="calc-field"><label>الجهد V (فولت)</label><input type="number" id="calcV" placeholder="أدخل الجهد" min="0" step="any"></div><div class="calc-field"><label>التيار I (أمبير)</label><input type="number" id="calcI" placeholder="أدخل التيار" min="0" step="any"></div><div class="calc-field"><label>المقاومة R (أوم)</label><input type="number" id="calcR" placeholder="أدخل المقاومة" min="0" step="any"></div><p style="color:var(--text-muted);font-size:0.8rem;text-align:center;">أدخل قيمتين لتحصل على الثالثة</p>',
+      power: '<div class="calc-field"><label>القدرة P (واط)</label><input type="number" id="calcP" placeholder="أدخل القدرة" min="0" step="any"></div><div class="calc-field"><label>الجهد V (فولت)</label><input type="number" id="calcV" placeholder="أدخل الجهد" min="0" step="any"></div><div class="calc-field"><label>التيار I (أمبير)</label><input type="number" id="calcI" placeholder="أدخل التيار" min="0" step="any"></div><p style="color:var(--text-muted);font-size:0.8rem;text-align:center;">P = V × I</p>',
+      cable: '<div class="calc-field"><label>تيار الحمل I (أمبير)</label><input type="number" id="calcCI" placeholder="أدخل التيار" min="0" step="any"></div><div class="calc-field"><label>طول الكابل L (متر)</label><input type="number" id="calcCL" placeholder="أدخل الطول" min="0" step="any"></div><div class="calc-field"><label>الهبوط المسموح ΔV%</label><input type="number" id="calcCV" value="3" min="0.1" max="20" step="any"></div>',
+      breaker: '<div class="calc-field"><label>تيار الحمل I (أمبير)</label><input type="number" id="calcBI" placeholder="أدخل تيار الحمل" min="0" step="any"></div><div class="calc-field"><label>نوع الحمل</label><select id="calcBType"><option value="1.25">حمل عادي</option><option value="1.5">محرك صغير</option><option value="2">حمل ثقيل</option></select></div>',
+      voltdrop: '<div class="calc-field"><label>تيار الحمل I (أمبير)</label><input type="number" id="calcVDI" placeholder="أدخل التيار" min="0" step="any"></div><div class="calc-field"><label>طول الكابل L (متر)</label><input type="number" id="calcVDL" placeholder="أدخل الطول" min="0" step="any"></div><div class="calc-field"><label>مساحة المقطع A (mm²)</label><input type="number" id="calcVDA" placeholder="أدخل المساحة" min="0.1" step="any"></div>',
+      pf: '<div class="calc-field"><label>القدرة الفعالة P (واط)</label><input type="number" id="calcPFP" placeholder="أدخل P" min="0" step="any"></div><div class="calc-field"><label>القدرة الظاهرية S (VA)</label><input type="number" id="calcPFS" placeholder="أدخل S" min="0" step="any"></div><div class="calc-field"><label>القدرة غير الفعالة Q (VAR)</label><input type="number" id="calcPFQ" placeholder="أدخل Q" min="0" step="any"></div>',
+      transformer: '<div class="calc-field"><label>الجهد الابتدائي V1 (فولت)</label><input type="number" id="calcV1" placeholder="أدخل V1" min="0" step="any"></div><div class="calc-field"><label>الجهد الثانوي V2 (فولت)</label><input type="number" id="calcV2" placeholder="أدخل V2" min="0" step="any"></div><div class="calc-field"><label>التيار الابتدائي I1 (أمبير)</label><input type="number" id="calcI1" placeholder="اختياري" min="0" step="any"></div>',
+      solar: '<div class="calc-field"><label>الاستهلاك اليومي (واط.ساعة)</label><input type="number" id="calcWh" placeholder="أدخل الاستهلاك" min="0" step="any"></div><div class="calc-field"><label>جهد النظام</label><select id="calcSV"><option value="12">12V</option><option value="24" selected>24V</option><option value="48">48V</option></select></div><div class="calc-field"><label>ساعات الشمس</label><input type="number" id="calcSH" value="5" min="1" max="12" step="any"></div>',
+      motor: '<div class="calc-field"><label>القدرة P (كيلوواط)</label><input type="number" id="calcMP" placeholder="أدخل القدرة" min="0" step="any"></div><div class="calc-field"><label>الجهد V (فولت)</label><input type="number" id="calcMV" placeholder="أدخل الجهد" min="0" step="any"></div><div class="calc-field"><label>معامل القدرة PF</label><input type="number" id="calcMPF" value="0.85" min="0.1" max="1" step="0.01"></div>',
+      led: '<div class="calc-field"><label>جهد المصدر Vs (فولت)</label><input type="number" id="calcLVs" placeholder="أدخل Vs" min="0" step="any"></div><div class="calc-field"><label>جهد LED Vf (فولت)</label><input type="number" id="calcLVf" value="2" min="0" step="any"></div><div class="calc-field"><label>تيار LED If (mA)</label><input type="number" id="calcLIf" value="20" min="1" step="any"></div>',
+      rc: '<div class="calc-field"><label>المقاومة R (أوم)</label><input type="number" id="calcRCR" placeholder="أدخل R" min="0" step="any"></div><div class="calc-field"><label>السعة C (µF)</label><input type="number" id="calcRCC" placeholder="أدخل C" min="0" step="any"></div>',
+      voltage_divider: '<div class="calc-field"><label>جهد الدخل Vin (فولت)</label><input type="number" id="calcVDVin" placeholder="أدخل Vin" min="0" step="any"></div><div class="calc-field"><label>المقاومة R1 (أوم)</label><input type="number" id="calcVDR1" placeholder="أدخل R1" min="0" step="any"></div><div class="calc-field"><label>المقاومة R2 (أوم)</label><input type="number" id="calcVDR2" placeholder="أدخل R2" min="0" step="any"></div>'
     };
-    return fields[calcId] || null;
+    return F[id] || null;
   }
 
   function closeCalcModal() {
@@ -511,284 +405,234 @@
   }
 
   function calculateResult(calcId) {
-    var resultDiv = document.getElementById('calcResult');
-    var errorDiv = document.getElementById('calcError');
-    if (!resultDiv) return;
-    resultDiv.classList.remove('show');
-    if (errorDiv) errorDiv.classList.remove('show');
-
-    var getVal = function (id) {
-      var el = document.getElementById(id);
-      if (!el) return null;
-      var val = parseFloat(el.value);
-      return isNaN(val) ? null : val;
-    };
-
-    var result = '';
-    var error = '';
-
+    var rd = document.getElementById('calcResult');
+    var ed = document.getElementById('calcError');
+    if (!rd) return;
+    rd.classList.remove('show');
+    if (ed) ed.classList.remove('show');
+    var gv = function (id) { var el = document.getElementById(id); if (!el) return null; var v = parseFloat(el.value); return isNaN(v) ? null : v; };
+    var result = '', error = '';
     try {
-      switch (calcId) {
-        case 'ohm':
-          var V = getVal('calcV'), I = getVal('calcI'), R = getVal('calcR');
-          var provided = [V, I, R].filter(function (v) { return v !== null; }).length;
-          if (provided < 2) { error = '⚠️ الرجاء إدخال قيمتين على الأقل'; break; }
-          if (V && I && I === 0) { error = '⚠️ لا يمكن حساب المقاومة عندما يكون التيار = 0'; break; }
-          if (V && I) result = 'المقاومة R = ' + (V / I).toFixed(3) + ' Ω';
-          else if (V && R) result = R === 0 ? '⚠️ المقاومة = 0 (قصر)' : 'التيار I = ' + (V / R).toFixed(3) + ' A';
-          else if (I && R) result = 'الجهد V = ' + (I * R).toFixed(2) + ' V';
-          break;
-        case 'power':
-          var P = getVal('calcP'), V2 = getVal('calcV'), I2 = getVal('calcI');
-          var provided2 = [P, V2, I2].filter(function (v) { return v !== null; }).length;
-          if (provided2 < 2) { error = '⚠️ الرجاء إدخال قيمتين على الأقل'; break; }
-          if (V2 && I2) result = 'القدرة P = ' + (V2 * I2).toFixed(2) + ' W';
-          else if (P && V2) result = V2 === 0 ? '⚠️ الجهد = 0' : 'التيار I = ' + (P / V2).toFixed(3) + ' A';
-          else if (P && I2) result = I2 === 0 ? '⚠️ التيار = 0' : 'الجهد V = ' + (P / I2).toFixed(2) + ' V';
-          break;
-        case 'cable':
-          var Ic = getVal('calcCI'), Lc = getVal('calcCL'), dVc = getVal('calcCV') || 3;
-          if (!Ic || !Lc) { error = '⚠️ الرجاء إدخال التيار والطول'; break; }
-          result = 'مساحة المقطع المطلوبة ≈ ' + ((2 * Lc * Ic) / (56 * dVc)).toFixed(2) + ' mm²';
-          break;
-        case 'breaker':
-          var Ib = getVal('calcBI');
-          if (!Ib) { error = '⚠️ الرجاء إدخال تيار الحمل'; break; }
-          var typeEl = document.getElementById('calcBType');
-          var factor = typeEl ? parseFloat(typeEl.value) : 1.25;
-          var breakerSize = Ib * factor;
-          var sizes = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250];
-          var recommended = sizes.find(function (s) { return s >= breakerSize; }) || Math.ceil(breakerSize / 5) * 5;
-          result = 'القاطع الموصى به: ' + recommended + ' A';
-          break;
-        case 'voltdrop':
-          var Iv = getVal('calcVDI'), Lv = getVal('calcVDL'), Av = getVal('calcVDA');
-          if (!Iv || !Lv || !Av) { error = '⚠️ الرجاء إدخال جميع القيم'; break; }
-          result = 'هبوط الجهد: ' + ((2 * Lv * Iv) / (56 * Av)).toFixed(2) + ' V';
-          break;
-        case 'pf':
-          var Pp = getVal('calcPFP'), Sp = getVal('calcPFS'), Qp = getVal('calcPFQ');
-          var providedP = [Pp, Sp, Qp].filter(function (v) { return v !== null; }).length;
-          if (providedP < 2) { error = '⚠️ الرجاء إدخال قيمتين على الأقل'; break; }
-          if (Pp !== null && Sp !== null) {
-            if (Pp > Sp) { error = '⚠️ P لا يمكن أن تكون أكبر من S'; break; }
-            result = 'معامل القدرة PF = ' + (Pp / Sp).toFixed(4);
-          } else if (Pp !== null && Qp !== null) {
-            var Sc = Math.sqrt(Pp * Pp + Qp * Qp);
-            result = 'S = ' + Sc.toFixed(1) + ' VA | PF = ' + (Pp / Sc).toFixed(4);
-          } else if (Sp !== null && Qp !== null) {
-            if (Sp < Qp) { error = '⚠️ S لا يمكن أن تكون أصغر من Q'; break; }
-            var Pc = Math.sqrt(Math.max(0, Sp * Sp - Qp * Qp));
-            result = 'P = ' + Pc.toFixed(1) + ' W | PF = ' + (Pc / Sp).toFixed(4);
-          }
-          break;
-        case 'transformer':
-          var Vt1 = getVal('calcV1'), Vt2 = getVal('calcV2'), It1 = getVal('calcI1');
-          if (!Vt1 || !Vt2) { error = '⚠️ الرجاء إدخال V1 و V2'; break; }
-          var ratio = Vt1 / Vt2;
-          result = 'نسبة التحويل = ' + ratio.toFixed(2) + ' : 1';
-          if (It1 !== null) result += ' | I2 = ' + (It1 * ratio).toFixed(2) + ' A';
-          break;
-        case 'solar':
-          var Wh = getVal('calcWh'), Vs = parseFloat(document.getElementById('calcSV') ? document.getElementById('calcSV').value : 24), Hs = getVal('calcSH') || 5;
-          if (!Wh) { error = '⚠️ الرجاء إدخال الاستهلاك اليومي'; break; }
-          result = 'سعة البطارية: ' + Math.ceil((Wh / Vs) * 1.3) + ' Ah | قدرة الألواح: ' + Math.ceil((Wh / Hs) * 1.2) + ' W';
-          break;
-        case 'motor':
-          var Pm = getVal('calcMP'), Vm = getVal('calcMV'), PFm = getVal('calcMPF') || 0.85;
-          if (!Pm || !Vm) { error = '⚠️ الرجاء إدخال القدرة والجهد'; break; }
-          result = 'تيار المحرك ≈ ' + ((Pm * 1000) / (Math.sqrt(3) * Vm * PFm)).toFixed(2) + ' A';
-          break;
-        case 'led':
-          var Vls = getVal('calcLVs'), Vlf = getVal('calcLVf') || 2, Ilf = getVal('calcLIf') || 20;
-          if (!Vls) { error = '⚠️ الرجاء إدخال جهد المصدر'; break; }
-          if (Vls <= Vlf) { error = '⚠️ جهد المصدر يجب أن يكون أكبر من جهد LED'; break; }
-          result = 'المقاومة المطلوبة: ' + ((Vls - Vlf) / (Ilf / 1000)).toFixed(0) + ' Ω';
-          break;
-        case 'rc':
-          var Rrc = getVal('calcRCR'), Crc = getVal('calcRCC');
-          if (!Rrc || !Crc) { error = '⚠️ الرجاء إدخال R و C'; break; }
-          var tau = Rrc * Crc / 1000000;
-          result = 'τ = ' + tau.toFixed(4) + ' ثانية | 5τ = ' + (tau * 5).toFixed(4) + ' ثانية';
-          break;
-        case 'voltage_divider':
-          var Vdv = getVal('calcVDVin'), Rd1 = getVal('calcVDR1'), Rd2 = getVal('calcVDR2');
-          if (!Vdv || !Rd1 || !Rd2) { error = '⚠️ الرجاء إدخال جميع القيم'; break; }
-          result = 'Vout = ' + (Vdv * Rd2 / (Rd1 + Rd2)).toFixed(2) + ' V';
-          break;
-        default: error = '⚠️ الحاسبة غير متوفرة';
+      if (calcId === 'ohm') {
+        var V = gv('calcV'), I = gv('calcI'), R = gv('calcR');
+        if ((V ? 1 : 0) + (I ? 1 : 0) + (R ? 1 : 0) < 2) { error = '⚠️ أدخل قيمتين'; }
+        else if (V && I && I === 0) { error = '⚠️ تيار = 0'; }
+        else if (V && I) result = 'R = ' + (V / I).toFixed(3) + ' Ω';
+        else if (V && R) result = R === 0 ? '⚠️ R = 0' : 'I = ' + (V / R).toFixed(3) + ' A';
+        else if (I && R) result = 'V = ' + (I * R).toFixed(2) + ' V';
+      } else if (calcId === 'power') {
+        var P = gv('calcP'), V2 = gv('calcV'), I2 = gv('calcI');
+        if ((P ? 1 : 0) + (V2 ? 1 : 0) + (I2 ? 1 : 0) < 2) { error = '⚠️ أدخل قيمتين'; }
+        else if (V2 && I2) result = 'P = ' + (V2 * I2).toFixed(2) + ' W';
+        else if (P && V2) result = V2 === 0 ? '⚠️ V = 0' : 'I = ' + (P / V2).toFixed(3) + ' A';
+        else if (P && I2) result = I2 === 0 ? '⚠️ I = 0' : 'V = ' + (P / I2).toFixed(2) + ' V';
+      } else if (calcId === 'cable') {
+        var Ic = gv('calcCI'), Lc = gv('calcCL'), dVc = gv('calcCV') || 3;
+        if (!Ic || !Lc) { error = '⚠️ أدخل التيار والطول'; }
+        else result = 'المقطع ≈ ' + ((2 * Lc * Ic) / (56 * dVc)).toFixed(2) + ' mm²';
+      } else if (calcId === 'breaker') {
+        var Ib = gv('calcBI'); if (!Ib) { error = '⚠️ أدخل تيار الحمل'; }
+        else { var sel = document.getElementById('calcBType'); var f = sel ? parseFloat(sel.value) : 1.25; var sz = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250]; var bs = Ib * f; var rec = sz.find(function (s) { return s >= bs; }) || Math.ceil(bs / 5) * 5; result = 'القاطع: ' + rec + ' A'; }
+      } else if (calcId === 'voltdrop') {
+        var Iv = gv('calcVDI'), Lv = gv('calcVDL'), Av = gv('calcVDA');
+        if (!Iv || !Lv || !Av) { error = '⚠️ أدخل جميع القيم'; }
+        else result = 'هبوط الجهد: ' + ((2 * Lv * Iv) / (56 * Av)).toFixed(2) + ' V';
+      } else if (calcId === 'pf') {
+        var Pp = gv('calcPFP'), Sp = gv('calcPFS'), Qp = gv('calcPFQ');
+        if ((Pp ? 1 : 0) + (Sp ? 1 : 0) + (Qp ? 1 : 0) < 2) { error = '⚠️ أدخل قيمتين'; }
+        else if (Pp !== null && Sp !== null) { if (Pp > Sp) { error = '⚠️ P > S'; } else result = 'PF = ' + (Pp / Sp).toFixed(4); }
+        else if (Pp !== null && Qp !== null) { var Sc = Math.sqrt(Pp * Pp + Qp * Qp); result = 'S = ' + Sc.toFixed(1) + ' VA, PF = ' + (Pp / Sc).toFixed(4); }
+        else if (Sp !== null && Qp !== null) { if (Sp < Qp) { error = '⚠️ S < Q'; } else { var Pc = Math.sqrt(Math.max(0, Sp * Sp - Qp * Qp)); result = 'P = ' + Pc.toFixed(1) + ' W, PF = ' + (Pc / Sp).toFixed(4); } }
+      } else if (calcId === 'transformer') {
+        var Vt1 = gv('calcV1'), Vt2 = gv('calcV2'), It1 = gv('calcI1');
+        if (!Vt1 || !Vt2) { error = '⚠️ أدخل V1 و V2'; }
+        else { var ratio = Vt1 / Vt2; result = 'نسبة = ' + ratio.toFixed(2) + ' : 1'; if (It1 !== null) result += ' | I2 = ' + (It1 * ratio).toFixed(2) + ' A'; }
+      } else if (calcId === 'solar') {
+        var Wh = gv('calcWh'), Vs = parseFloat((document.getElementById('calcSV') || {}).value) || 24, Hs = gv('calcSH') || 5;
+        if (!Wh) { error = '⚠️ أدخل الاستهلاك'; }
+        else result = 'بطارية: ' + Math.ceil((Wh / Vs) * 1.3) + ' Ah | ألواح: ' + Math.ceil((Wh / Hs) * 1.2) + ' W';
+      } else if (calcId === 'motor') {
+        var Pm = gv('calcMP'), Vm = gv('calcMV'), PFm = gv('calcMPF') || 0.85;
+        if (!Pm || !Vm) { error = '⚠️ أدخل P و V'; }
+        else result = 'تيار ≈ ' + ((Pm * 1000) / (1.732 * Vm * PFm)).toFixed(2) + ' A';
+      } else if (calcId === 'led') {
+        var Vls = gv('calcLVs'), Vlf = gv('calcLVf') || 2, Ilf = gv('calcLIf') || 20;
+        if (!Vls) { error = '⚠️ أدخل Vs'; }
+        else if (Vls <= Vlf) { error = '⚠️ Vs يجب > Vf'; }
+        else result = 'R = ' + Math.round((Vls - Vlf) / (Ilf / 1000)) + ' Ω';
+      } else if (calcId === 'rc') {
+        var Rrc = gv('calcRCR'), Crc = gv('calcRCC');
+        if (!Rrc || !Crc) { error = '⚠️ أدخل R و C'; }
+        else { var tau = Rrc * Crc / 1e6; result = 'τ = ' + tau.toFixed(4) + 's | 5τ = ' + (tau * 5).toFixed(4) + 's'; }
+      } else if (calcId === 'voltage_divider') {
+        var Vdv = gv('calcVDVin'), Rd1 = gv('calcVDR1'), Rd2 = gv('calcVDR2');
+        if (!Vdv || !Rd1 || !Rd2) { error = '⚠️ أدخل جميع القيم'; }
+        else result = 'Vout = ' + (Vdv * Rd2 / (Rd1 + Rd2)).toFixed(2) + ' V';
       }
-    } catch (e) {
-      error = '⚠️ حدث خطأ في الحساب. تحقق من المدخلات.';
-    }
-
-    if (error && errorDiv) { errorDiv.textContent = error; errorDiv.classList.add('show'); }
-    else if (result) { resultDiv.textContent = result; resultDiv.classList.add('show'); }
+    } catch (ex) { error = '⚠️ خطأ في الحساب'; }
+    if (error && ed) { ed.textContent = error; ed.classList.add('show'); }
+    else if (result) { rd.textContent = result; rd.classList.add('show'); }
   }
 
-  /* ========== Projects Page ========== */
   function renderProjectsPage() {
-    var container = document.getElementById('page-projects');
-    if (!container) return;
-    var frag = document.createDocumentFragment();
-    var title = document.createElement('h2');
-    title.style.marginBottom = '16px';
-    title.textContent = '🛠️ المشاريع العملية';
-    frag.appendChild(title);
-    var list = document.createElement('div');
-    list.className = 'projects-list';
-    APP_DATA.projects.forEach(function (proj) {
-      var compsHtml = proj.components.map(function (c) { return '<span class="project-comp">' + c + '</span>'; }).join('');
-      var stepsHtml = proj.steps ? '<ol class="project-steps">' + proj.steps.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' : '';
-      var levelClass = proj.levelClass || 'beginner';
+    var c = document.getElementById('page-projects');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var t = document.createElement('h2');
+    t.style.marginBottom = '16px';
+    t.textContent = '🛠️ المشاريع العملية';
+    f.appendChild(t);
+    var l = document.createElement('div');
+    l.className = 'projects-list';
+    APP_DATA.projects.forEach(function (p) {
       var card = document.createElement('div');
       card.className = 'project-card';
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.innerHTML = '<h4>' + proj.title + '</h4><span class="project-level ' + levelClass + '">📌 ' + proj.level + '</span><div class="project-components">' + compsHtml + '</div>' + stepsHtml;
+      card.innerHTML = '<h4>' + p.title + '</h4><span class="project-level ' + (p.levelClass || 'beginner') + '">📌 ' + p.level + '</span><div class="project-components">' + p.components.map(function (c) { return '<span class="project-comp">' + c + '</span>'; }).join('') + '</div>' + (p.steps ? '<ol class="project-steps">' + p.steps.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' : '');
       card.addEventListener('click', function () { navigateTo('simulator', null); });
-      list.appendChild(card);
+      l.appendChild(card);
     });
-    frag.appendChild(list);
-    container.innerHTML = '';
-    container.appendChild(frag);
+    f.appendChild(l);
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
-  /* ========== Library Page ========== */
   function renderLibraryPage() {
-    var container = document.getElementById('page-library');
-    if (!container) return;
-    var frag = document.createDocumentFragment();
-    var title = document.createElement('h2');
-    title.style.marginBottom = '16px';
-    title.textContent = '📚 المكتبة';
-    frag.appendChild(title);
-    var grid = document.createElement('div');
-    grid.className = 'library-grid';
-    APP_DATA.categories.forEach(function (cat) {
+    var c = document.getElementById('page-library');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var t = document.createElement('h2');
+    t.style.marginBottom = '16px';
+    t.textContent = '📚 المكتبة المرجعية';
+    f.appendChild(t);
+
+    var desc = document.createElement('p');
+    desc.style.cssText = 'color:var(--text-secondary);margin-bottom:20px;font-size:0.9rem;';
+    desc.textContent = 'تصفح جميع أقسام الهندسة الكهربائية والإلكترونية مع دروس تفصيلية ومراجع شاملة.';
+    f.appendChild(desc);
+
+    var g = document.createElement('div');
+    g.className = 'library-grid';
+
+    var libItems = [
+      { id: 'basics', title: 'أساسيات الكهرباء', icon: '⚡', desc: 'قانون أوم، كيرشوف، القدرة، التيار والمتردد' },
+      { id: 'electronics', title: 'الإلكترونيات', icon: '🔌', desc: 'مقاومات، مكثفات، ترانزستورات، دوائر متكاملة' },
+      { id: 'components', title: 'العناصر الكهربائية', icon: '💡', desc: 'ريليهات، كونتاكتورات، قواطع، مفاتيح' },
+      { id: 'motors', title: 'المحركات والمولدات', icon: '⚙️', desc: 'محركات DC/AC، طرق التشغيل، المولدات' },
+      { id: 'control', title: 'التحكم الكهربائي', icon: '🎛️', desc: 'PLC، SCADA، دوائر كلاسيكية، VFD' },
+      { id: 'solar', title: 'الطاقة الشمسية', icon: '☀️', desc: 'ألواح، بطاريات، انفرتر، حسابات النظام' },
+      { id: 'safety', title: 'السلامة المهنية', icon: '🛡️', desc: 'LOTO، مهمات وقاية، إسعافات، مخاطر' }
+    ];
+
+    libItems.forEach(function (item) {
       var card = document.createElement('div');
       card.className = 'library-card';
-      card.setAttribute('data-cat-id', cat.id);
+      card.setAttribute('data-cat-id', item.id);
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.innerHTML = '<span class="lib-icon" aria-hidden="true">' + cat.icon + '</span><div class="lib-title">' + cat.title + '</div>';
-      grid.appendChild(card);
+      card.style.cssText = 'padding:20px 14px;';
+      card.innerHTML = '<span class="lib-icon" style="font-size:2.5rem;display:block;margin-bottom:10px;">' + item.icon + '</span><div class="lib-title" style="font-size:0.9rem;font-weight:700;margin-bottom:6px;">' + item.title + '</div><div style="font-size:0.72rem;color:var(--text-muted);line-height:1.5;">' + item.desc + '</div>';
+      g.appendChild(card);
     });
-    frag.appendChild(grid);
-    container.innerHTML = '';
-    container.appendChild(frag);
+
+    f.appendChild(g);
+
+    var info = document.createElement('p');
+    info.style.cssText = 'text-align:center;margin-top:24px;color:var(--text-muted);font-size:0.8rem;';
+    info.textContent = '📌 انقر على أي قسم للاطلاع على الدروس والمراجع الكاملة';
+    f.appendChild(info);
+
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
-  /* ========== Dictionary Page ========== */
   function renderDictionaryPage() {
-    var container = document.getElementById('page-dictionary');
-    if (!container) return;
-    var frag = document.createDocumentFragment();
-    var title = document.createElement('h2');
-    title.style.marginBottom = '16px';
-    title.textContent = '📖 قاموس المصطلحات';
-    frag.appendChild(title);
-    var searchDiv = document.createElement('div');
-    searchDiv.className = 'dict-search';
-    var searchInput = document.createElement('input');
-    searchInput.type = 'search';
-    searchInput.id = 'dictSearch';
-    searchInput.placeholder = '🔍 ابحث عن مصطلح...';
-    searchInput.setAttribute('aria-label', 'البحث في القاموس');
-    searchInput.setAttribute('autocomplete', 'off');
-    searchInput.addEventListener('input', debounce(filterDictionary, 150));
-    searchDiv.appendChild(searchInput);
-    frag.appendChild(searchDiv);
-    var list = document.createElement('div');
-    list.className = 'dict-list';
-    list.id = 'dictList';
+    var c = document.getElementById('page-dictionary');
+    if (!c) return;
+    var f = document.createDocumentFragment();
+    var t = document.createElement('h2');
+    t.style.marginBottom = '16px';
+    t.textContent = '📖 قاموس المصطلحات';
+    f.appendChild(t);
+    var sd = document.createElement('div');
+    sd.className = 'dict-search';
+    var si = document.createElement('input');
+    si.type = 'search';
+    si.id = 'dictSearch';
+    si.placeholder = '🔍 ابحث عن مصطلح...';
+    si.setAttribute('aria-label', 'البحث في القاموس');
+    si.setAttribute('autocomplete', 'off');
+    si.addEventListener('input', debounce(filterDictionary, 150));
+    sd.appendChild(si);
+    f.appendChild(sd);
+    var l = document.createElement('div');
+    l.className = 'dict-list';
+    l.id = 'dictList';
     APP_DATA.dictionary.forEach(function (item) {
-      var dictItem = document.createElement('div');
-      dictItem.className = 'dict-item';
-      dictItem.setAttribute('data-search', (item.ar + ' ' + item.en).toLowerCase());
-      dictItem.innerHTML = '<div class="dict-term">' + item.ar + '</div><div class="dict-english">🇬🇧 ' + item.en + '</div><div class="dict-desc">' + item.desc + '</div>';
-      list.appendChild(dictItem);
+      var di = document.createElement('div');
+      di.className = 'dict-item';
+      di.setAttribute('data-search', (item.ar + ' ' + item.en).toLowerCase());
+      di.innerHTML = '<div class="dict-term">' + item.ar + '</div><div class="dict-english">🇬🇧 ' + item.en + '</div><div class="dict-desc">' + item.desc + '</div>';
+      l.appendChild(di);
     });
-    frag.appendChild(list);
-    container.innerHTML = '';
-    container.appendChild(frag);
+    f.appendChild(l);
+    c.innerHTML = '';
+    c.appendChild(f);
   }
 
   function filterDictionary() {
-    var query = (document.getElementById('dictSearch') ? document.getElementById('dictSearch').value : '').toLowerCase();
+    var q = (document.getElementById('dictSearch') ? document.getElementById('dictSearch').value : '').toLowerCase();
     var items = document.querySelectorAll('#dictList .dict-item');
-    var visibleCount = 0;
+    var vc = 0;
     items.forEach(function (item) {
-      var text = item.getAttribute('data-search') || '';
-      var visible = query === '' || text.indexOf(query) !== -1;
-      item.style.display = visible ? '' : 'none';
-      if (visible) visibleCount++;
+      var t = item.getAttribute('data-search') || '';
+      var v = q === '' || t.indexOf(q) !== -1;
+      item.style.display = v ? '' : 'none';
+      if (v) vc++;
     });
-    var existingEmpty = document.querySelector('.dict-empty');
-    if (existingEmpty) existingEmpty.remove();
-    if (visibleCount === 0 && query !== '') {
-      var list = document.getElementById('dictList');
-      if (list) {
-        var emptyMsg = document.createElement('div');
-        emptyMsg.className = 'dict-empty';
-        emptyMsg.textContent = '🔍 لا توجد نتائج لـ "' + query + '"';
-        list.appendChild(emptyMsg);
-      }
+    var ee = document.querySelector('.dict-empty');
+    if (ee) ee.remove();
+    if (vc === 0 && q !== '') {
+      var l = document.getElementById('dictList');
+      if (l) { var em = document.createElement('div'); em.className = 'dict-empty'; em.textContent = '🔍 لا توجد نتائج لـ "' + q + '"'; l.appendChild(em); }
     }
   }
 
-  /* ========== Quiz Page ========== */
   function renderQuizPage() {
-    var container = document.getElementById('page-quiz');
-    if (!container) return;
+    var c = document.getElementById('page-quiz');
+    if (!c) return;
     if (typeof window.getQuizHTML === 'function') {
-      container.innerHTML = window.getQuizHTML();
-      setTimeout(function () {
-        if (typeof window.initQuiz === 'function') window.initQuiz();
-      }, 200);
+      c.innerHTML = window.getQuizHTML();
+      setTimeout(function () { if (typeof window.initQuiz === 'function') window.initQuiz(); }, 200);
     } else {
-      container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:3rem;margin-bottom:16px;">📝</div><p style="font-size:1.1rem;">⏳ جاري تحميل الاختبارات...</p></div>';
+      c.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted);"><p>⏳ جاري تحميل الاختبارات...</p></div>';
     }
   }
 
-  /* ========== Keyboard Handler ========== */
   function handleGlobalKeyboard(e) {
-    if (e.key === 'Escape') {
-      if (dom.calcModalContainer && !dom.calcModalContainer.hasAttribute('hidden')) {
-        closeCalcModal();
-      }
+    if (e.key === 'Escape' && dom.calcModalContainer && !dom.calcModalContainer.hasAttribute('hidden')) {
+      closeCalcModal();
     }
   }
 
-  /* ========== Toast System ========== */
   function showToast(message, type) {
     if (!dom.toastContainer) return;
     var toast = document.createElement('div');
     toast.className = 'toast' + (type ? ' toast-' + type : '');
     toast.setAttribute('role', 'status');
-    toast.setAttribute('aria-live', 'polite');
     toast.textContent = message;
     dom.toastContainer.appendChild(toast);
-    var removeToast = function () {
-      toast.classList.add('toast-exit');
-      toast.addEventListener('animationend', function () { if (toast.parentNode) toast.remove(); }, { once: true });
-    };
-    var timeoutId = setTimeout(removeToast, TOAST_DURATION);
-    toast.addEventListener('click', function () { clearTimeout(timeoutId); removeToast(); });
+    var rm = function () { toast.classList.add('toast-exit'); toast.addEventListener('animationend', function () { if (toast.parentNode) toast.remove(); }, { once: true }); };
+    var tid = setTimeout(rm, TOAST_DURATION);
+    toast.addEventListener('click', function () { clearTimeout(tid); rm(); });
   }
 
-  /* ========== Utility: Debounce ========== */
   function debounce(fn, delay) {
-    var timeoutId;
-    return function () {
-      var args = arguments;
-      var ctx = this;
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(function () { fn.apply(ctx, args); }, delay);
-    };
+    var tid;
+    return function () { var ctx = this, args = arguments; clearTimeout(tid); tid = setTimeout(function () { fn.apply(ctx, args); }, delay); };
   }
 
-  /* ========== Public API ========== */
   window.navigateTo = navigateTo;
   window.openCalculator = openCalculator;
   window.closeCalcModal = closeCalcModal;
@@ -796,7 +640,6 @@
   window.filterDictionary = filterDictionary;
   window.showToast = showToast;
 
-  /* ========== Start ========== */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
