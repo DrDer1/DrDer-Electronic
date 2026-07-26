@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DrDer Electronic - Simulator Wires
+   DrDer Electronic - Simulator Wires v4.0
    Manages wire connections between components
    ========================================================================== */
 (function () {
@@ -17,7 +17,7 @@
     /* ========================================================================
        Initialize
        ======================================================================== */
-    init(state, canvasModule) {
+    init: function (state, canvasModule) {
       this._state = state;
       this._canvasModule = canvasModule;
       this._connections = [];
@@ -26,28 +26,28 @@
     },
 
     /* ========================================================================
-       Start creating a connection
+       Start creating a connection from a terminal
        ======================================================================== */
-    startConnection(componentId, terminalIndex, clientX, clientY) {
-      const world = this._canvasModule.screenToWorld(clientX, clientY);
+    startConnection: function (componentId, terminalIndex, clientX, clientY) {
+      if (!this._canvasModule) return;
+
+      var world = this._canvasModule.screenToWorld(clientX, clientY);
 
       this._tempConnection = {
         fromCompId: componentId,
         fromTerminal: terminalIndex,
-        startX: world.x,
-        startY: world.y,
         currentX: world.x,
         currentY: world.y
       };
     },
 
     /* ========================================================================
-       Update temp wire position
+       Update temporary wire position while dragging
        ======================================================================== */
-    updateTempWire(clientX, clientY) {
-      if (!this._tempConnection) return;
+    updateTempWire: function (clientX, clientY) {
+      if (!this._tempConnection || !this._canvasModule) return;
 
-      const world = this._canvasModule.screenToWorld(clientX, clientY);
+      var world = this._canvasModule.screenToWorld(clientX, clientY);
       this._tempConnection.currentX = world.x;
       this._tempConnection.currentY = world.y;
 
@@ -55,61 +55,61 @@
     },
 
     /* ========================================================================
-       Draw temporary wire
+       Draw the temporary wire on SVG
        ======================================================================== */
-    _drawTempWire() {
+    _drawTempWire: function () {
       if (!this._svgWires || !this._tempConnection) return;
 
-      let g = document.getElementById('simTempWireGroup');
+      var g = document.getElementById('simTempWireGroup');
       if (!g) {
-        g = SimUtils.createSVGElement('g', { id: 'simTempWireGroup' });
+        g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.id = 'simTempWireGroup';
         this._svgWires.appendChild(g);
       }
 
-      const fromComp = this._state.placedComponents.find(c => c.id === this._tempConnection.fromCompId);
+      var fromComp = this._getComponentById(this._tempConnection.fromCompId);
       if (!fromComp || !fromComp.el) return;
 
-      const termPos = this._getTerminalWorldPos(fromComp, this._tempConnection.fromTerminal);
-      const x1 = termPos.x;
-      const y1 = termPos.y;
-      const x2 = this._tempConnection.currentX;
-      const y2 = this._tempConnection.currentY;
+      var termPos = this._getTerminalWorldPos(fromComp, this._tempConnection.fromTerminal);
+      var x1 = termPos.x;
+      var y1 = termPos.y;
+      var x2 = this._tempConnection.currentX;
+      var y2 = this._tempConnection.currentY;
 
-      g.innerHTML = `
-        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
-              stroke="var(--accent)" stroke-width="2" stroke-dasharray="8,4" opacity="0.8"/>
-      `;
+      g.innerHTML = '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+        '" stroke="var(--accent)" stroke-width="2" stroke-dasharray="8,4" opacity="0.8"/>';
     },
 
     /* ========================================================================
        Finish creating a connection
        ======================================================================== */
-    finishConnection(clientX, clientY) {
+    finishConnection: function (clientX, clientY) {
       this._removeTempWire();
 
       if (!this._tempConnection) return null;
 
-      const world = this._canvasModule.screenToWorld(clientX, clientY);
-      const fromCompId = this._tempConnection.fromCompId;
-      const fromTerminal = this._tempConnection.fromTerminal;
+      if (!this._canvasModule) {
+        this._tempConnection = null;
+        return null;
+      }
+
+      var world = this._canvasModule.screenToWorld(clientX, clientY);
+      var fromCompId = this._tempConnection.fromCompId;
+      var fromTerminal = this._tempConnection.fromTerminal;
 
       this._tempConnection = null;
 
-      const bestTerminal = this._findNearestTerminal(world.x, world.y, fromCompId);
+      var bestTerminal = this._findNearestTerminal(world.x, world.y, fromCompId);
       if (!bestTerminal) return null;
 
-      const exists = this._connections.some(c =>
-        (c.fromCompId === fromCompId && c.toCompId === bestTerminal.componentId &&
-         c.fromTerminal === fromTerminal && c.toTerminal === bestTerminal.terminalIndex) ||
-        (c.fromCompId === bestTerminal.componentId && c.toCompId === fromCompId &&
-         c.fromTerminal === bestTerminal.terminalIndex && c.toTerminal === fromTerminal)
-      );
+      var exists = this._connectionExists(fromCompId, fromTerminal, bestTerminal.componentId, bestTerminal.terminalIndex);
+      if (exists) {
+        return { success: false, message: '⚠️ هذان الطرفان متصلان بالفعل' };
+      }
 
-      if (exists) return { success: false, message: '⚠️ هذان الطرفان متصلان بالفعل' };
-
-      const connection = {
-        fromCompId,
-        fromTerminal,
+      var connection = {
+        fromCompId: fromCompId,
+        fromTerminal: fromTerminal,
         toCompId: bestTerminal.componentId,
         toTerminal: bestTerminal.terminalIndex,
         color: '#d2991d'
@@ -121,46 +121,65 @@
         this._onConnectionCreated(connection);
       }
 
-      return { success: true, connection };
+      return { success: true, connection: connection };
     },
 
     /* ========================================================================
-       Find nearest terminal
+       Check if connection already exists
        ======================================================================== */
-    _findNearestTerminal(wx, wy, excludeCompId) {
-      const canvas = this._canvasModule.getCanvas();
+    _connectionExists: function (fromId, fromTerm, toId, toTerm) {
+      for (var i = 0; i < this._connections.length; i++) {
+        var c = this._connections[i];
+        if ((c.fromCompId === fromId && c.toCompId === toId &&
+             c.fromTerminal === fromTerm && c.toTerminal === toTerm) ||
+            (c.fromCompId === toId && c.toCompId === fromId &&
+             c.fromTerminal === toTerm && c.toTerminal === fromTerm)) {
+          return true;
+        }
+      }
+      return false;
+    },
+
+    /* ========================================================================
+       Find nearest terminal to a world position
+       ======================================================================== */
+    _findNearestTerminal: function (wx, wy, excludeCompId) {
+      var canvas = this._canvasModule ? this._canvasModule.getCanvas() : null;
       if (!canvas) return null;
 
-      let best = null;
-      let bestDist = 40 / (this._canvasModule.getZoomLevel() || 1);
+      var best = null;
+      var bestDist = 40 / (this._canvasModule.getZoomLevel() || 1);
+      var terminals = canvas.querySelectorAll('.sim-terminal');
 
-      canvas.querySelectorAll('.sim-terminal').forEach(term => {
-        const compId = parseInt(term.dataset.componentId);
-        if (compId === excludeCompId) return;
+      for (var i = 0; i < terminals.length; i++) {
+        var term = terminals[i];
+        var compId = parseInt(term.dataset.componentId);
+        if (compId === excludeCompId) continue;
 
-        const comp = this._state.placedComponents.find(c => c.id === compId);
-        if (!comp || !comp.el) return;
+        var comp = this._getComponentById(compId);
+        if (!comp || !comp.el) continue;
 
-        const terminalIndex = parseInt(term.dataset.terminalIndex);
-        const pos = this._getTerminalWorldPos(comp, terminalIndex);
-        const dist = SimUtils.distance(wx, wy, pos.x, pos.y);
+        var terminalIndex = parseInt(term.dataset.terminalIndex);
+        var pos = this._getTerminalWorldPos(comp, terminalIndex);
+        var dist = Math.sqrt((wx - pos.x) * (wx - pos.x) + (wy - pos.y) * (wy - pos.y));
 
         if (dist < bestDist) {
           bestDist = dist;
-          best = { componentId: compId, terminalIndex };
+          best = { componentId: compId, terminalIndex: terminalIndex };
         }
-      });
+      }
 
       return best;
     },
 
     /* ========================================================================
-       Get terminal world position
+       Get terminal position in world coordinates
        ======================================================================== */
-    _getTerminalWorldPos(comp, terminalIndex) {
-      const def = window.findComponentDef(comp.compId);
-      const positions = window.getTerminalPositions(def ? def.terminals : 2);
-      const pos = positions[terminalIndex] || positions[0];
+    _getTerminalWorldPos: function (comp, terminalIndex) {
+      var def = window.findComponentDef(comp.compId);
+      var terminalCount = def ? def.terminals : 2;
+      var positions = window.getTerminalPositions(terminalCount);
+      var pos = positions[terminalIndex] || positions[0];
 
       return {
         x: comp.x + (pos.x / 100) * comp.el.offsetWidth,
@@ -169,82 +188,98 @@
     },
 
     /* ========================================================================
-       Remove temp wire
+       Get component by ID from state
        ======================================================================== */
-    _removeTempWire() {
-      const g = document.getElementById('simTempWireGroup');
+    _getComponentById: function (id) {
+      if (!this._state || !this._state.placedComponents) return null;
+      for (var i = 0; i < this._state.placedComponents.length; i++) {
+        if (this._state.placedComponents[i].id === id) {
+          return this._state.placedComponents[i];
+        }
+      }
+      return null;
+    },
+
+    /* ========================================================================
+       Remove temporary wire
+       ======================================================================== */
+    _removeTempWire: function () {
+      var g = document.getElementById('simTempWireGroup');
       if (g) g.remove();
     },
 
     /* ========================================================================
-       Cancel connection
+       Cancel current connection
        ======================================================================== */
-    cancelConnection() {
+    cancelConnection: function () {
       this._tempConnection = null;
       this._removeTempWire();
     },
 
     /* ========================================================================
-       Check if creating connection
+       Check if currently creating a connection
        ======================================================================== */
-    isConnecting() {
+    isConnecting: function () {
       return this._tempConnection !== null;
     },
 
     /* ========================================================================
-       Draw all wires
+       Draw all wires on SVG
        ======================================================================== */
-    drawAllWires(simulationActive) {
+    drawAllWires: function (simulationActive) {
       if (!this._svgWires) return;
 
-      this._svgWires.querySelectorAll('.sim-wire-path').forEach(el => el.remove());
+      var existingWires = this._svgWires.querySelectorAll('.sim-wire-path');
+      for (var i = 0; i < existingWires.length; i++) {
+        existingWires[i].remove();
+      }
 
-      this._connections.forEach((conn, index) => {
-        const fromComp = this._state.placedComponents.find(c => c.id === conn.fromCompId);
-        const toComp = this._state.placedComponents.find(c => c.id === conn.toCompId);
+      var self = this;
+      this._connections.forEach(function (conn, index) {
+        var fromComp = self._getComponentById(conn.fromCompId);
+        var toComp = self._getComponentById(conn.toCompId);
 
         if (!fromComp || !toComp || !fromComp.el || !toComp.el) return;
 
-        const fromPos = this._getTerminalWorldPos(fromComp, conn.fromTerminal);
-        const toPos = this._getTerminalWorldPos(toComp, conn.toTerminal);
+        var fromPos = self._getTerminalWorldPos(fromComp, conn.fromTerminal);
+        var toPos = self._getTerminalWorldPos(toComp, conn.toTerminal);
 
-        const x1 = fromPos.x, y1 = fromPos.y;
-        const x2 = toPos.x, y2 = toPos.y;
-        const midX = (x1 + x2) / 2;
+        var x1 = fromPos.x, y1 = fromPos.y;
+        var x2 = toPos.x, y2 = toPos.y;
+        var midX = (x1 + x2) / 2;
 
-        const path = SimUtils.createSVGElement('path', {
-          d: `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`,
-          fill: 'none',
-          stroke: simulationActive ? '#3fb950' : (conn.color || '#d2991d'),
-          'stroke-width': '2.5',
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          'data-connection-index': index,
-          class: 'sim-wire-path'
-        });
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M ' + x1 + ' ' + y1 + ' C ' + midX + ' ' + y1 + ', ' + midX + ' ' + y2 + ', ' + x2 + ' ' + y2);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', simulationActive ? '#3fb950' : (conn.color || '#d2991d'));
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('data-connection-index', index);
+        path.classList.add('sim-wire-path');
 
-        path.addEventListener('click', (e) => {
+        path.addEventListener('click', function (e) {
           e.stopPropagation();
           if (window.SimSelection) {
             window.SimSelection.selectWire(path);
           }
         });
 
-        path.addEventListener('dblclick', (e) => {
+        path.addEventListener('dblclick', function (e) {
           e.stopPropagation();
-          this._deleteWire(index);
+          self.deleteWireByIndex(index);
         });
 
-        this._svgWires.appendChild(path);
+        self._svgWires.appendChild(path);
       });
     },
 
     /* ========================================================================
-       Delete a wire
+       Delete a wire by index
        ======================================================================== */
-    _deleteWire(index) {
+    deleteWireByIndex: function (index) {
       if (index >= 0 && index < this._connections.length) {
-        const conn = this._connections[index];
+        var conn = this._connections[index];
         this._connections.splice(index, 1);
 
         if (this._onConnectionRemoved) {
@@ -253,14 +288,19 @@
       }
     },
 
-    deleteSelectedWire() {
-      const selectedWire = window.SimSelection ? window.SimSelection.getSelectedWire() : null;
+    /* ========================================================================
+       Delete selected wire
+       ======================================================================== */
+    deleteSelectedWire: function () {
+      if (!window.SimSelection) return false;
+
+      var selectedWire = window.SimSelection.getSelectedWire();
       if (!selectedWire) return false;
 
-      const index = parseInt(selectedWire.dataset.connectionIndex);
+      var index = parseInt(selectedWire.dataset.connectionIndex);
       if (!isNaN(index)) {
-        this._deleteWire(index);
-        if (window.SimSelection) window.SimSelection.clearWireSelection();
+        this.deleteWireByIndex(index);
+        window.SimSelection.clearWireSelection();
         return true;
       }
 
@@ -268,44 +308,50 @@
     },
 
     /* ========================================================================
-       Delete connections for a component
+       Delete all connections for a component
        ======================================================================== */
-    deleteConnectionsForComponent(componentId) {
-      this._connections = this._connections.filter(c =>
-        c.fromCompId !== componentId && c.toCompId !== componentId
-      );
+    deleteConnectionsForComponent: function (componentId) {
+      this._connections = this._connections.filter(function (c) {
+        return c.fromCompId !== componentId && c.toCompId !== componentId;
+      });
     },
 
     /* ========================================================================
-       Getters
+       Getters and Setters
        ======================================================================== */
-    getConnections() {
-      return [...this._connections];
+    getConnections: function () {
+      return this._connections.slice();
     },
 
-    setConnections(connections) {
-      this._connections = [...connections];
+    setConnections: function (connections) {
+      this._connections = connections ? connections.slice() : [];
     },
 
-    getConnectionCount() {
+    getConnectionCount: function () {
       return this._connections.length;
     },
 
     /* ========================================================================
        Callbacks
        ======================================================================== */
-    onConnectionCreated(cb) { this._onConnectionCreated = cb; },
-    onConnectionRemoved(cb) { this._onConnectionRemoved = cb; },
+    onConnectionCreated: function (cb) { this._onConnectionCreated = cb; },
+    onConnectionRemoved: function (cb) { this._onConnectionRemoved = cb; },
 
     /* ========================================================================
-       Clear all
+       Clear all wires
        ======================================================================== */
-    clearAll() {
+    clearAll: function () {
       this._connections = [];
       this._tempConnection = null;
       this._removeTempWire();
+
       if (this._svgWires) {
-        this._svgWires.querySelectorAll('.sim-wire-path, #simTempWireGroup').forEach(el => el.remove());
+        var wires = this._svgWires.querySelectorAll('.sim-wire-path');
+        for (var i = 0; i < wires.length; i++) {
+          wires[i].remove();
+        }
+        var tempGroup = document.getElementById('simTempWireGroup');
+        if (tempGroup) tempGroup.remove();
       }
     }
   };
