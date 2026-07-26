@@ -5,16 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0d1117">
-  <meta name="description" content="مختبر هندسة كهربائية وإلكترونية متكامل - DrDer Electronic - تعليم، محاكاة، حاسبات واختبارات">
-  <meta name="keywords" content="هندسة كهربائية, إلكترونيات, محاكاة دوائر, PLC, طاقة شمسية, محركات, قانون أوم, تعليم كهرباء">
+  <meta name="description" content="مختبر هندسة كهربائية وإلكترونية متكامل - DrDer Electronic - تعليم، محاكاة، حاسبات، اختبارات، مكتبة، قاموس">
+  <meta name="keywords" content="هندسة كهربائية, إلكترونيات, محاكاة دوائر, PLC, طاقة شمسية, محركات, قانون أوم, تعليم كهرباء, مختبر إلكتروني, دوائر كهربائية">
   <meta name="author" content="DrDer Electronic">
   <meta name="robots" content="index, follow">
   <meta name="google" content="notranslate">
   <meta name="referrer" content="same-origin">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="DrDer Electronic - مختبر الهندسة الكهربائية">
-  <meta property="og:description" content="مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين">
+  <meta property="og:title" content="DrDer Electronic - مختبر الهندسة الكهربائية والإلكترونية">
+  <meta property="og:description" content="مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين - تعليم، محاكاة، حاسبات واختبارات">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ar_AR">
   <meta property="og:site_name" content="DrDer Electronic">
@@ -32,6 +32,8 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" href="./192.png">
+
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./simulator/simulator.css">
 
@@ -69,40 +71,75 @@
   <!-- ========== Main Navigation ========== -->
   <nav class="main-nav" id="mainNav" role="navigation" aria-label="التنقل الرئيسي">
     <div class="nav-tabs" id="navTabs" role="tablist" aria-label="أقسام التطبيق">
-      <button class="nav-tab active" data-nav="home" role="tab" aria-selected="true">🏠 الرئيسية</button>
-      <button class="nav-tab" data-nav="simulator" role="tab" aria-selected="false">🔧 المحاكاة</button>
-      <button class="nav-tab" data-nav="calculators" role="tab" aria-selected="false">🧮 الحاسبات</button>
-      <button class="nav-tab" data-nav="quiz" role="tab" aria-selected="false">📝 الاختبارات</button>
-      <button class="nav-tab" data-nav="projects" role="tab" aria-selected="false">🛠️ المشاريع</button>
-      <button class="nav-tab" data-nav="library" role="tab" aria-selected="false">📚 المكتبة</button>
-      <button class="nav-tab" data-nav="dictionary" role="tab" aria-selected="false">📖 القاموس</button>
+      <button class="nav-tab active" data-nav="home" role="tab" aria-selected="true">
+        🏠 الرئيسية
+      </button>
+      <button class="nav-tab" data-nav="simulator" role="tab" aria-selected="false">
+        🔧 المحاكاة
+      </button>
+      <button class="nav-tab" data-nav="calculators" role="tab" aria-selected="false">
+        🧮 الحاسبات
+      </button>
+      <button class="nav-tab" data-nav="quiz" role="tab" aria-selected="false">
+        📝 الاختبارات
+      </button>
+      <button class="nav-tab" data-nav="projects" role="tab" aria-selected="false">
+        🛠️ المشاريع
+      </button>
+      <button class="nav-tab" data-nav="library" role="tab" aria-selected="false">
+        📚 المكتبة
+      </button>
+      <button class="nav-tab" data-nav="dictionary" role="tab" aria-selected="false">
+        📖 القاموس
+      </button>
     </div>
   </nav>
 
   <!-- ========== Main Content ========== -->
   <main class="main-content" id="mainContent" role="main" aria-live="polite">
+    <!-- Home Page -->
     <section class="page active" id="page-home" aria-label="الصفحة الرئيسية"></section>
+
+    <!-- Category Lessons Page -->
     <section class="page" id="page-category" aria-label="قسم الدروس"></section>
+
+    <!-- Lesson Detail Page -->
     <section class="page" id="page-lesson" aria-label="تفاصيل الدرس"></section>
-    <section class="page" id="page-simulator" aria-label="محاكي الدوائر الكهربائية"></section>
+
+    <!-- Simulator Page -->
+    <section class="page" id="page-simulator" aria-label="محاكي الدوائر الكهربائية والإلكترونية"></section>
+
+    <!-- Calculators Page -->
     <section class="page" id="page-calculators" aria-label="الحاسبات الهندسية"></section>
-    <section class="page" id="page-quiz" aria-label="الاختبارات"></section>
+
+    <!-- Quiz Page -->
+    <section class="page" id="page-quiz" aria-label="الاختبارات والتقييم"></section>
+
+    <!-- Projects Page -->
     <section class="page" id="page-projects" aria-label="المشاريع العملية"></section>
-    <section class="page" id="page-library" aria-label="المكتبة"></section>
-    <section class="page" id="page-dictionary" aria-label="قاموس المصطلحات"></section>
+
+    <!-- Library Page -->
+    <section class="page" id="page-library" aria-label="المكتبة الهندسية"></section>
+
+    <!-- Dictionary Page -->
+    <section class="page" id="page-dictionary" aria-label="قاموس المصطلحات الكهربائية"></section>
   </main>
 
   <!-- ========== Calculator Modal Container ========== -->
-  <div id="calcModalContainer" role="dialog" aria-modal="true" aria-label="الحاسبة" hidden></div>
+  <div id="calcModalContainer" role="dialog" aria-modal="true" aria-label="الحاسبة الهندسية" hidden></div>
 
-  <!-- ========== Toast Container ========== -->
+  <!-- ========== Toast Notification Container ========== -->
   <div id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
 
-  <!-- ========== Scripts - Data Files ========== -->
+  <!-- ========================================================================
+       JavaScript Files - Load Order Matters
+       ======================================================================== -->
+
+  <!-- Data Files (Must load first) -->
   <script src="./data.js"></script>
   <script src="./quiz-data.js"></script>
 
-  <!-- ========== Scripts - Simulator Modules ========== -->
+  <!-- Simulator Modules (All simulator files) -->
   <script src="./simulator/simulator-utils.js"></script>
   <script src="./simulator/simulator-components.js"></script>
   <script src="./simulator/simulator-history.js"></script>
@@ -119,8 +156,11 @@
   <script src="./simulator/simulator-ui.js"></script>
   <script src="./simulator/simulator.js"></script>
 
-  <!-- ========== Scripts - App ========== -->
+  <!-- Quiz Module -->
   <script src="./quiz.js"></script>
+
+  <!-- Main Application (Must load last) -->
   <script src="./app.js"></script>
+
 </body>
 </html>
