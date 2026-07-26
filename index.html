@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117">
   <meta name="description" content="مختبر هندسة كهربائية وإلكترونية متكامل - DrDer Electronic - تعليم، محاكاة، حاسبات، اختبارات، مكتبة، قاموس">
   <meta name="keywords" content="هندسة كهربائية, إلكترونيات, محاكاة دوائر, PLC, طاقة شمسية, محركات, قانون أوم, تعليم كهرباء, مختبر إلكتروني, دوائر كهربائية">
   <meta name="author" content="DrDer Electronic">
@@ -41,10 +42,10 @@
 </head>
 <body>
 
-  <!-- ========== Skip Link for Accessibility ========== -->
+  <!-- Skip Link for Accessibility -->
   <a href="#mainContent" class="skip-link">تخطي إلى المحتوى الرئيسي</a>
 
-  <!-- ========== Header ========== -->
+  <!-- Header -->
   <header class="app-header" id="appHeader" role="banner">
     <button class="app-logo" data-nav="home" aria-label="الذهاب إلى الصفحة الرئيسية" title="الرئيسية">
       <span class="logo-icon" aria-hidden="true">⚡</span>
@@ -68,85 +69,54 @@
     </nav>
   </header>
 
-  <!-- ========== Main Navigation ========== -->
+  <!-- Main Navigation -->
   <nav class="main-nav" id="mainNav" role="navigation" aria-label="التنقل الرئيسي">
     <div class="nav-tabs" id="navTabs" role="tablist" aria-label="أقسام التطبيق">
-      <button class="nav-tab active" data-nav="home" role="tab" aria-selected="true">
-        🏠 الرئيسية
-      </button>
-      <button class="nav-tab" data-nav="simulator" role="tab" aria-selected="false">
-        🔧 المحاكاة
-      </button>
-      <button class="nav-tab" data-nav="calculators" role="tab" aria-selected="false">
-        🧮 الحاسبات
-      </button>
-      <button class="nav-tab" data-nav="quiz" role="tab" aria-selected="false">
-        📝 الاختبارات
-      </button>
-      <button class="nav-tab" data-nav="projects" role="tab" aria-selected="false">
-        🛠️ المشاريع
-      </button>
-      <button class="nav-tab" data-nav="library" role="tab" aria-selected="false">
-        📚 المكتبة
-      </button>
-      <button class="nav-tab" data-nav="dictionary" role="tab" aria-selected="false">
-        📖 القاموس
-      </button>
+      <button class="nav-tab active" data-nav="home" role="tab" aria-selected="true">🏠 الرئيسية</button>
+      <button class="nav-tab" data-nav="simulator" role="tab" aria-selected="false">🔧 المحاكاة</button>
+      <button class="nav-tab" data-nav="calculators" role="tab" aria-selected="false">🧮 الحاسبات</button>
+      <button class="nav-tab" data-nav="quiz" role="tab" aria-selected="false">📝 الاختبارات</button>
+      <button class="nav-tab" data-nav="projects" role="tab" aria-selected="false">🛠️ المشاريع</button>
+      <button class="nav-tab" data-nav="library" role="tab" aria-selected="false">📚 المكتبة</button>
+      <button class="nav-tab" data-nav="dictionary" role="tab" aria-selected="false">📖 القاموس</button>
     </div>
   </nav>
 
-  <!-- ========== Main Content ========== -->
+  <!-- Main Content -->
   <main class="main-content" id="mainContent" role="main" aria-live="polite">
-    <!-- Home Page -->
     <section class="page active" id="page-home" aria-label="الصفحة الرئيسية"></section>
-
-    <!-- Category Lessons Page -->
     <section class="page" id="page-category" aria-label="قسم الدروس"></section>
-
-    <!-- Lesson Detail Page -->
     <section class="page" id="page-lesson" aria-label="تفاصيل الدرس"></section>
-
-    <!-- Simulator Page -->
     <section class="page" id="page-simulator" aria-label="محاكي الدوائر الكهربائية والإلكترونية"></section>
-
-    <!-- Calculators Page -->
     <section class="page" id="page-calculators" aria-label="الحاسبات الهندسية"></section>
-
-    <!-- Quiz Page -->
     <section class="page" id="page-quiz" aria-label="الاختبارات والتقييم"></section>
-
-    <!-- Projects Page -->
     <section class="page" id="page-projects" aria-label="المشاريع العملية"></section>
-
-    <!-- Library Page -->
     <section class="page" id="page-library" aria-label="المكتبة الهندسية"></section>
-
-    <!-- Dictionary Page -->
     <section class="page" id="page-dictionary" aria-label="قاموس المصطلحات الكهربائية"></section>
   </main>
 
-  <!-- ========== Calculator Modal Container ========== -->
+  <!-- Calculator Modal Container -->
   <div id="calcModalContainer" role="dialog" aria-modal="true" aria-label="الحاسبة الهندسية" hidden></div>
 
-  <!-- ========== Toast Notification Container ========== -->
+  <!-- Toast Notification Container -->
   <div id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
 
   <!-- ========================================================================
        JavaScript Files - Load Order Matters
        ======================================================================== -->
 
-  <!-- Data Files (Must load first) -->
+  <!-- Data Files (Must load first - no dependencies) -->
   <script src="./data.js"></script>
   <script src="./quiz-data.js"></script>
 
-  <!-- Simulator Modules (All simulator files) -->
+  <!-- Simulator Modules (Order matters due to dependencies) -->
   <script src="./simulator/simulator-utils.js"></script>
   <script src="./simulator/simulator-components.js"></script>
   <script src="./simulator/simulator-history.js"></script>
   <script src="./simulator/simulator-selection.js"></script>
   <script src="./simulator/simulator-drag.js"></script>
-  <script src="./simulator/simulator-wires.js"></script>
   <script src="./simulator/simulator-canvas.js"></script>
+  <script src="./simulator/simulator-wires.js"></script>
   <script src="./simulator/simulator-properties.js"></script>
   <script src="./simulator/simulator-validation.js"></script>
   <script src="./simulator/simulator-power.js"></script>
@@ -159,7 +129,7 @@
   <!-- Quiz Module -->
   <script src="./quiz.js"></script>
 
-  <!-- Main Application (Must load last) -->
+  <!-- Main Application (Must load last - depends on all above) -->
   <script src="./app.js"></script>
 
 </body>
