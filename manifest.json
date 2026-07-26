@@ -1,16 +1,18 @@
 {
-  "name": "DrDer Electronic",
+  "name": "DrDer Electronic - مختبر الهندسة الكهربائية",
   "short_name": "DrDer",
   "description": "مختبر هندسة كهربائية وإلكترونية متكامل - تعليم، محاكاة، حاسبات واختبارات",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#0d1117",
   "theme_color": "#0d1117",
   "orientation": "any",
   "lang": "ar",
   "dir": "rtl",
-  "categories": ["education", "utilities"],
+  "categories": ["education", "utilities", "productivity"],
+  "description": "مختبر هندسة كهربائية وإلكترونية متكامل للطلاب والمهندسين والفنيين",
   "icons": [
     {
       "src": "./192.png",
@@ -26,5 +28,28 @@
     }
   ],
   "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "المحاكاة",
+      "short_name": "محاكاة",
+      "description": "افتح محاكي الدوائر الكهربائية",
+      "url": "./#simulator",
+      "icons": [{ "src": "./192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "الحاسبات",
+      "short_name": "حاسبات",
+      "description": "الحاسبات الهندسية",
+      "url": "./#calculators",
+      "icons": [{ "src": "./192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "الاختبارات",
+      "short_name": "اختبارات",
+      "description": "اختبر معلوماتك",
+      "url": "./#quiz",
+      "icons": [{ "src": "./192.png", "sizes": "192x192" }]
+    }
+  ],
   "prefer_related_applications": false
 }
