@@ -1,6 +1,7 @@
 /* ==========================================================================
-   DrDer Electronic - Simulator Canvas v4.1
-   Fixed: Canvas initialization, zoom/pan, coordinate system
+   DrDer Electronic - Simulator Canvas v5.0
+   Manages drawing area, grid, zoom, pan, and coordinate system
+   Fixed: Single parameter init, uses SimGetState for state access
    ========================================================================== */
 (function () {
   'use strict';
@@ -29,10 +30,14 @@
     _boundMouseUp: null,
     _boundWheel: null,
 
+    /**
+     * Initialize the canvas
+     * @param {string} canvasId - ID of canvas element
+     */
     init: function (canvasId) {
       this._canvas = document.getElementById(canvasId);
       if (!this._canvas) {
-        console.error('SimCanvas: Canvas element "' + canvasId + '" not found');
+        console.error('SimCanvas: Element "' + canvasId + '" not found');
         return;
       }
 
@@ -46,10 +51,12 @@
 
       this._updateGridPattern();
       this._setupEventListeners();
-      this._updatePlaceholder();
       this._updateStatusBar();
     },
 
+    /**
+     * Remove all event listeners
+     */
     destroy: function () {
       if (!this._canvas) return;
       if (this._boundMouseDown) this._canvas.removeEventListener('mousedown', this._boundMouseDown);
@@ -78,10 +85,9 @@
       this._canvas.addEventListener('wheel', this._boundWheel, { passive: false });
       this._canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-      var touchHandler = this;
-      this._canvas.addEventListener('touchstart', function (e) { touchHandler._handleTouchStart(e); }, { passive: false });
-      this._canvas.addEventListener('touchmove', function (e) { touchHandler._handleTouchMove(e); }, { passive: false });
-      this._canvas.addEventListener('touchend', function (e) { touchHandler._handleTouchEnd(e); });
+      this._canvas.addEventListener('touchstart', function (e) { self._handleTouchStart(e); }, { passive: false });
+      this._canvas.addEventListener('touchmove', function (e) { self._handleTouchMove(e); }, { passive: false });
+      this._canvas.addEventListener('touchend', function (e) { self._handleTouchEnd(e); });
     },
 
     _handleMouseDown: function (e) {
@@ -161,7 +167,7 @@
 
     screenToWorld: function (screenX, screenY) {
       this._canvasRect = this._canvas ? this._canvas.getBoundingClientRect() : null;
-      if (!this._canvasRect) return { x: 0, y: 0 };
+      if (!this._canvasRect) return { x: screenX, y: screenY };
       return {
         x: (screenX - this._canvasRect.left - this._panOffsetX) / this._zoomLevel,
         y: (screenY - this._canvasRect.top - this._panOffsetY) / this._zoomLevel
@@ -240,7 +246,9 @@
       this._applyTransform();
     },
 
-    zoomToFit: function (components) {
+    zoomToFit: function () {
+      var state = window.SimGetState ? window.SimGetState() : null;
+      var components = state ? state.placedComponents : [];
       if (!components || components.length === 0) {
         this._zoomLevel = 1;
         this._panOffsetX = 0;
@@ -271,10 +279,6 @@
     },
 
     getZoomLevel: function () { return this._zoomLevel; },
-
-    _updatePlaceholder: function () {
-      if (this._placeholder) this._placeholder.style.display = '';
-    },
 
     showPlaceholder: function (show) {
       if (this._placeholder) this._placeholder.style.display = show ? '' : 'none';
