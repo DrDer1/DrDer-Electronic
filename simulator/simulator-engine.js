@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DrDer Electronic - Simulation Engine
+   DrDer Electronic - Simulation Engine v4.0
    Core engine that coordinates all simulator modules
    ========================================================================== */
 (function () {
@@ -13,7 +13,7 @@
     /* ========================================================================
        Initialize
        ======================================================================== */
-    init(state) {
+    init: function (state) {
       this._state = state;
       this._simulationActive = false;
     },
@@ -21,13 +21,12 @@
     /* ========================================================================
        Run simulation
        ======================================================================== */
-    run() {
-      if (this._state.placedComponents.length === 0) {
+    run: function () {
+      if (!this._state || this._state.placedComponents.length === 0) {
         return { success: false, message: '⚠️ لا توجد عناصر في الدائرة' };
       }
 
-      // Validate first
-      const validation = window.SimValidation.validate(
+      var validation = window.SimValidation.validate(
         this._state.placedComponents,
         window.SimWires.getConnections()
       );
@@ -41,30 +40,31 @@
         };
       }
 
-      // Reset previous states
       window.SimPower.resetAll(this._state.placedComponents);
 
-      // Run power simulation
-      const result = window.SimPower.simulate(
+      var result = window.SimPower.simulate(
         this._state.placedComponents,
         window.SimWires.getConnections()
       );
 
-      // Apply visual feedback
       window.SimPower.applyVisualFeedback(this._state.placedComponents, result.conducting);
 
-      // Redraw wires with active state
       window.SimWires.drawAllWires(true);
 
       this._simulationActive = true;
 
       if (this._onStateChange) {
-        this._onStateChange({ active: true, result });
+        this._onStateChange({ active: true, result: result });
+      }
+
+      var message = '⚡ تم تشغيل الدائرة بنجاح!';
+      if (validation.warnings && validation.warnings.length > 0) {
+        message += ' (مع ' + validation.warnings.length + ' ملاحظات)';
       }
 
       return {
         success: true,
-        message: '⚡ تم تشغيل الدائرة بنجاح!',
+        message: message,
         conducting: result.conducting,
         voltageMap: result.voltageMap,
         warnings: validation.warnings
@@ -74,7 +74,11 @@
     /* ========================================================================
        Stop simulation
        ======================================================================== */
-    stop() {
+    stop: function () {
+      if (!this._state) {
+        return { success: false, message: '⚠️ لا توجد حالة للمحاكاة' };
+      }
+
       window.SimPower.resetAll(this._state.placedComponents);
       window.SimPower.clearVisualFeedback(this._state.placedComponents);
       window.SimWires.drawAllWires(false);
@@ -91,31 +95,32 @@
     /* ========================================================================
        Toggle simulation
        ======================================================================== */
-    toggle() {
+    toggle: function () {
       return this._simulationActive ? this.stop() : this.run();
     },
 
     /* ========================================================================
        Check if simulation is active
        ======================================================================== */
-    isActive() {
+    isActive: function () {
       return this._simulationActive;
     },
 
     /* ========================================================================
        Toggle a switch component
        ======================================================================== */
-    toggleSwitch(componentId) {
-      const comp = this._state.placedComponents.find(c => c.id === componentId);
+    toggleSwitch: function (componentId) {
+      if (!this._state) return;
+
+      var comp = this._getComponentById(componentId);
       if (!comp) return;
 
-      const def = window.findComponentDef(comp.compId);
+      var def = window.findComponentDef(comp.compId);
       if (!def || def.type !== 'switch') return;
 
-      comp.compState = comp.compState || {};
+      if (!comp.compState) comp.compState = {};
       comp.compState.closed = !comp.compState.closed;
 
-      // Update visual
       if (comp.el) {
         if (comp.compState.closed) {
           comp.el.style.borderColor = '#3fb950';
@@ -124,7 +129,6 @@
         }
       }
 
-      // If simulation active, re-run
       if (this._simulationActive) {
         this.run();
       }
@@ -133,14 +137,17 @@
     /* ========================================================================
        Push a button (momentary)
        ======================================================================== */
-    pushButton(componentId) {
-      const comp = this._state.placedComponents.find(c => c.id === componentId);
+    pushButton: function (componentId) {
+      if (!this._state) return;
+
+      var comp = this._getComponentById(componentId);
       if (!comp) return;
 
-      const def = window.findComponentDef(comp.compId);
-      if (!def || (def.subtype !== 'push_no' && def.subtype !== 'push_nc' && def.subtype !== 'emergency')) return;
+      var def = window.findComponentDef(comp.compId);
+      if (!def) return;
+      if (def.subtype !== 'push_no' && def.subtype !== 'push_nc' && def.subtype !== 'emergency') return;
 
-      comp.compState = comp.compState || {};
+      if (!comp.compState) comp.compState = {};
       comp.compState.pressed = true;
 
       if (comp.el) {
@@ -151,29 +158,53 @@
         this.run();
       }
 
-      // Release after delay
-      setTimeout(() => {
+      var self = this;
+      setTimeout(function () {
         comp.compState.pressed = false;
         if (comp.el) {
           comp.el.style.borderColor = def.color || 'var(--accent)';
         }
-        if (this._simulationActive) {
-          this.run();
+        if (self._simulationActive) {
+          self.run();
         }
       }, 500);
     },
 
     /* ========================================================================
+       Get component by ID
+       ======================================================================== */
+    _getComponentById: function (id) {
+      if (!this._state || !this._state.placedComponents) return null;
+      for (var i = 0; i < this._state.placedComponents.length; i++) {
+        if (this._state.placedComponents[i].id === id) {
+          return this._state.placedComponents[i];
+        }
+      }
+      return null;
+    },
+
+    /* ========================================================================
        Get current state snapshot for undo
        ======================================================================== */
-    getStateSnapshot() {
-      return {
-        comps: this._state.placedComponents.map(c => ({
-          id: c.id, compId: c.compId, x: c.x, y: c.y,
-          properties: SimUtils.clone(c.properties),
+    getStateSnapshot: function () {
+      if (!this._state) return { comps: [], conns: [], cid: 0 };
+
+      var comps = [];
+      for (var i = 0; i < this._state.placedComponents.length; i++) {
+        var c = this._state.placedComponents[i];
+        comps.push({
+          id: c.id,
+          compId: c.compId,
+          x: c.x,
+          y: c.y,
+          properties: window.SimUtils ? window.SimUtils.clone(c.properties) : c.properties,
           rotation: c.rotation || 0
-        })),
-        conns: SimUtils.clone(window.SimWires.getConnections()),
+        });
+      }
+
+      return {
+        comps: comps,
+        conns: window.SimUtils ? window.SimUtils.clone(window.SimWires.getConnections()) : window.SimWires.getConnections(),
         cid: this._state.componentIdCounter
       };
     },
@@ -181,65 +212,89 @@
     /* ========================================================================
        Restore state from snapshot
        ======================================================================== */
-    restoreSnapshot(snapshot) {
+    restoreSnapshot: function (snapshot) {
+      if (!snapshot || !this._state) return;
+
+      var canvas = document.getElementById('simCanvas');
+
       this._state.placedComponents = [];
-      this._state.componentIdCounter = snapshot.cid;
+      this._state.componentIdCounter = snapshot.cid || 0;
       window.SimWires.clearAll();
 
-      snapshot.comps.forEach(cd => {
-        const def = window.findComponentDef(cd.compId);
-        if (!def) return;
+      for (var i = 0; i < snapshot.comps.length; i++) {
+        var cd = snapshot.comps[i];
+        var def = window.findComponentDef(cd.compId);
+        if (!def) continue;
 
-        const id = cd.id;
-        const el = document.createElement('div');
+        var id = cd.id;
+        var el = document.createElement('div');
         el.className = 'sim-component';
-        el.id = `comp-${id}`;
+        el.id = 'comp-' + id;
         el.dataset.componentId = id;
         el.dataset.compType = cd.compId;
-        el.style.left = `${cd.x}px`;
-        el.style.top = `${cd.y}px`;
-        el.innerHTML = `
-          <span class="sim-comp-icon">${def.icon}</span>
-          <span class="sim-comp-label">${def.name}</span>
-          <span class="sim-comp-badge">${id}</span>
-          <button class="sim-comp-delete" title="حذف">✕</button>
-        `;
+        el.style.left = cd.x + 'px';
+        el.style.top = cd.y + 'px';
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'sim-comp-delete';
+        deleteBtn.title = 'حذف';
+        deleteBtn.textContent = '✕';
+        el.appendChild(deleteBtn);
+
+        var icon = document.createElement('span');
+        icon.className = 'sim-comp-icon';
+        icon.textContent = def.icon;
+        el.appendChild(icon);
+
+        var label = document.createElement('span');
+        label.className = 'sim-comp-label';
+        label.textContent = def.name;
+        el.appendChild(label);
+
+        var badge = document.createElement('span');
+        badge.className = 'sim-comp-badge';
+        badge.textContent = id;
+        el.appendChild(badge);
 
         if (cd.rotation) {
-          el.style.transform = `rotate(${cd.rotation}deg)`;
+          el.style.transform = 'rotate(' + cd.rotation + 'deg)';
         }
 
-        // Add terminals
-        const positions = window.getTerminalPositions(def.terminals || 2);
-        positions.forEach((pos, i) => {
-          const term = document.createElement('div');
+        var positions = window.getTerminalPositions(def.terminals || 2);
+        for (var j = 0; j < positions.length; j++) {
+          var pos = positions[j];
+          var term = document.createElement('div');
           term.className = 'sim-terminal';
-          term.style.left = `${pos.x}%`;
-          term.style.top = `${pos.y}%`;
+          term.style.left = pos.x + '%';
+          term.style.top = pos.y + '%';
           term.dataset.componentId = id;
-          term.dataset.terminalIndex = i;
+          term.dataset.terminalIndex = j;
           el.appendChild(term);
-        });
+        }
 
-        document.getElementById('simCanvas')?.appendChild(el);
+        if (canvas) canvas.appendChild(el);
 
         this._state.placedComponents.push({
-          id, compId: cd.compId, el, x: cd.x, y: cd.y,
-          properties: SimUtils.clone(cd.properties || {}),
+          id: id,
+          compId: cd.compId,
+          el: el,
+          x: cd.x,
+          y: cd.y,
+          properties: cd.properties ? window.SimUtils.clone(cd.properties) : {},
           rotation: cd.rotation || 0,
-          compState: { active: false, energized: false }
+          compState: { active: false, energized: false, closed: false }
         });
-      });
+      }
 
-      this._state.componentIdCounter = snapshot.cid;
+      this._state.componentIdCounter = snapshot.cid || 0;
       window.SimWires.setConnections(snapshot.conns);
       window.SimWires.drawAllWires(false);
     },
 
     /* ========================================================================
-       Callback
+       Callback for state changes
        ======================================================================== */
-    onStateChange(cb) {
+    onStateChange: function (cb) {
       this._onStateChange = cb;
     }
   };
