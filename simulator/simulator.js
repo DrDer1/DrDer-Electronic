@@ -1,6 +1,6 @@
 /* ==========================================================================
-   DrDer Electronic - Simulator Main Entry Point v4.2
-   Fixed: Library initialization, search, component display
+   DrDer Electronic - Simulator Main Entry Point v4.3
+   Fixed: Drag and wire connection events
    ========================================================================== */
 (function () {
   'use strict';
@@ -78,7 +78,7 @@
           '</div>' +
         '</div>' +
         '<div class="sim-canvas-container">' +
-          '<div class="sim-canvas-area" id="simCanvas" tabindex="0">' +
+          '<div class="sim-canvas-area" id="simCanvas" tabindex="0" style="position:relative;overflow:hidden;width:100%;height:100%;">' +
             '<svg class="sim-grid-svg" id="canvasGridSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;">' +
               '<defs>' +
                 '<pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">' +
@@ -119,24 +119,20 @@
     '</div>';
   }
 
+  // ========== ADD COMPONENT ==========
   function addComponent(compId, x, y) {
     var def = window.findComponentDef(compId);
-    if (!def) {
-      console.warn('Component not found:', compId);
-      return;
-    }
+    if (!def) return;
 
     var canvas = document.getElementById('simCanvas');
-    if (!canvas) {
-      console.error('Canvas not found');
-      return;
-    }
+    if (!canvas) return;
 
     var placeholder = document.getElementById('canvasPlaceholder');
     if (placeholder) placeholder.style.display = 'none';
 
     var id = ++simState.componentIdCounter;
 
+    // Create element
     var el = document.createElement('div');
     el.className = 'sim-component';
     el.id = 'comp-' + id;
@@ -147,25 +143,34 @@
     el.setAttribute('aria-label', def.name);
     el.setAttribute('tabindex', '0');
 
+    // Icon
     var icon = document.createElement('span');
-    icon.style.cssText = 'font-size:1.3rem;display:block;';
+    icon.style.cssText = 'font-size:1.3rem;display:block;pointer-events:none;';
     icon.textContent = def.icon;
     el.appendChild(icon);
 
+    // Label
     var label = document.createElement('span');
-    label.style.cssText = 'font-size:0.65rem;font-weight:600;color:#e6edf3;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    label.style.cssText = 'font-size:0.65rem;font-weight:600;color:#e6edf3;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;';
     label.textContent = def.name;
     el.appendChild(label);
 
+    // Badge
     var badge = document.createElement('span');
-    badge.style.cssText = 'position:absolute;top:-9px;right:-5px;background:#00e5ff;color:#000;font-size:0.55rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:6;';
+    badge.style.cssText = 'position:absolute;top:-9px;right:-5px;background:#00e5ff;color:#000;font-size:0.55rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:6;pointer-events:none;';
     badge.textContent = id;
     el.appendChild(badge);
 
+    // Delete button
     var deleteBtn = document.createElement('button');
-    deleteBtn.style.cssText = 'position:absolute;top:-9px;left:-7px;width:16px;height:16px;border-radius:50%;background:#f85149;color:#fff;border:none;font-size:0.5rem;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:6;padding:0;line-height:1;';
+    deleteBtn.className = 'sim-comp-delete';
+    deleteBtn.style.cssText = 'position:absolute;top:-9px;left:-7px;width:16px;height:16px;border-radius:50%;background:#f85149;color:#fff;border:none;font-size:0.5rem;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:20;padding:0;line-height:1;';
     deleteBtn.title = 'حذف';
     deleteBtn.textContent = '✕';
+    deleteBtn.addEventListener('mousedown', function (ev) {
+      ev.stopPropagation();
+      ev.preventDefault();
+    });
     deleteBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       ev.preventDefault();
@@ -179,55 +184,156 @@
     el.addEventListener('mouseenter', function () { deleteBtn.style.display = 'flex'; });
     el.addEventListener('mouseleave', function () { deleteBtn.style.display = 'none'; });
 
+    // ===== DRAG EVENTS =====
+    var isDragging = false;
+    var startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
     el.addEventListener('mousedown', function (ev) {
       if (ev.button !== 0) return;
       if (ev.target.closest('.sim-terminal')) return;
       if (ev.target === deleteBtn) return;
       ev.preventDefault();
       ev.stopPropagation();
-      var comp = getComponentById(id);
-      if (comp && window.SimDrag) {
-        window.SimDrag.startDrag(comp, ev.clientX, ev.clientY);
-      }
-    });
 
-    el.addEventListener('click', function (ev) {
-      if (window.SimDrag && window.SimDrag.isDragging()) return;
-      ev.stopPropagation();
+      isDragging = true;
+      startX = ev.clientX;
+      startY = ev.clientY;
+      startLeft = parseInt(el.style.left) || 0;
+      startTop = parseInt(el.style.top) || 0;
+      el.style.zIndex = '20';
+      el.style.cursor = 'grabbing';
+
       if (window.SimSelection) {
         window.SimSelection.selectComponent(id, ev.ctrlKey || ev.metaKey, simState.placedComponents);
-        if (window.SimSelection.getSelectedCount() === 1) {
-          var comp = getComponentById(id);
-          if (comp && window.SimProperties) window.SimProperties.show(comp);
-        }
       }
     });
 
+    document.addEventListener('mousemove', function (ev) {
+      if (!isDragging) return;
+      ev.preventDefault();
+
+      var dx = ev.clientX - startX;
+      var dy = ev.clientY - startY;
+      var newX = startLeft + dx;
+      var newY = startTop + dy;
+
+      if (window.SimCanvas && window.SimCanvas.isSnapEnabled && window.SimCanvas.isSnapEnabled()) {
+        var gs = window.SimCanvas.getGridSize();
+        newX = Math.round(newX / gs) * gs;
+        newY = Math.round(newY / gs) * gs;
+      }
+
+      newX = Math.max(0, newX);
+      newY = Math.max(0, newY);
+
+      el.style.left = newX + 'px';
+      el.style.top = newY + 'px';
+
+      // Update state
+      var comp = getComponentById(id);
+      if (comp) {
+        comp.x = newX;
+        comp.y = newY;
+      }
+
+      if (window.SimWires) {
+        window.SimWires.drawAllWires(window.SimEngine ? window.SimEngine.isActive() : false);
+      }
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (!isDragging) return;
+      var dx = Math.abs(parseInt(el.style.left) - startLeft);
+      var dy = Math.abs(parseInt(el.style.top) - startTop);
+      if (dx > 1 || dy > 1) {
+        if (window.SimHistory && window.SimEngine) {
+          window.SimHistory.push(window.SimEngine.getStateSnapshot());
+        }
+      }
+      isDragging = false;
+      el.style.zIndex = '10';
+      el.style.cursor = 'move';
+    });
+
+    // Click to select
+    el.addEventListener('click', function (ev) {
+      if (Math.abs(parseInt(el.style.left) - startLeft) > 2) return;
+      if (Math.abs(parseInt(el.style.top) - startTop) > 2) return;
+      ev.stopPropagation();
+      if (window.SimProperties) {
+        var comp = getComponentById(id);
+        if (comp) window.SimProperties.show(comp);
+      }
+    });
+
+    // Double click for switch toggle
     el.addEventListener('dblclick', function (ev) {
       ev.stopPropagation();
       var comp = getComponentById(id);
       if (comp && window.SimEngine) {
         var cdef = window.findComponentDef(comp.compId);
-        if (cdef && cdef.type === 'switch') window.SimEngine.toggleSwitch(id);
+        if (cdef && cdef.type === 'switch') {
+          window.SimEngine.toggleSwitch(id);
+        }
       }
     });
 
+    // ===== TERMINALS =====
     var positions = window.getTerminalPositions(def.terminals || 2);
     for (var i = 0; i < positions.length; i++) {
       var pos = positions[i];
       var term = document.createElement('div');
       term.className = 'sim-terminal';
-      term.style.cssText = 'position:absolute;left:' + pos.x + '%;top:' + pos.y + '%;width:10px;height:10px;background:#00e5ff;border:2px solid #0d1117;border-radius:50%;z-index:7;cursor:crosshair;transform:translate(-50%,-50%);';
+      term.style.cssText = 'position:absolute;left:' + pos.x + '%;top:' + pos.y + '%;width:12px;height:12px;background:#00e5ff;border:2px solid #0d1117;border-radius:50%;z-index:15;cursor:crosshair;transform:translate(-50%,-50%);';
       term.setAttribute('data-component-id', id);
       term.setAttribute('data-terminal-index', i);
       term.setAttribute('aria-label', 'طرف ' + (i + 1));
-      term.title = 'طرف ' + (i + 1);
+      term.title = 'طرف ' + (i + 1) + ' - اسحب للتوصيل';
 
       (function (termEl, compId, termIdx) {
+        var isConnecting = false;
+        var connStartX = 0, connStartY = 0;
+
         termEl.addEventListener('mousedown', function (ev) {
           ev.stopPropagation();
           ev.preventDefault();
-          if (window.SimWires) window.SimWires.startConnection(compId, termIdx, ev.clientX, ev.clientY);
+          isConnecting = true;
+          connStartX = ev.clientX;
+          connStartY = ev.clientY;
+
+          if (window.SimWires) {
+            window.SimWires.startConnection(compId, termIdx, ev.clientX, ev.clientY);
+          }
+        });
+
+        document.addEventListener('mousemove', function (ev) {
+          if (!isConnecting) return;
+          if (window.SimWires) {
+            window.SimWires.updateTempWire(ev.clientX, ev.clientY);
+          }
+        });
+
+        document.addEventListener('mouseup', function (ev) {
+          if (!isConnecting) return;
+          isConnecting = false;
+
+          if (window.SimWires) {
+            if (window.SimHistory && window.SimEngine) {
+              window.SimHistory.push(window.SimEngine.getStateSnapshot());
+            }
+            var result = window.SimWires.finishConnection(ev.clientX, ev.clientY);
+            if (result) {
+              if (result.success) {
+                window.SimWires.drawAllWires(window.SimEngine ? window.SimEngine.isActive() : false);
+                if (window.SimCanvas) {
+                  window.SimCanvas.updateConnectionCount(window.SimWires.getConnectionCount());
+                }
+                showFeedback('✅ تم التوصيل', 'success');
+              } else {
+                showFeedback(result.message || '⚠️ فشل التوصيل', 'error');
+              }
+            }
+          }
         });
       })(term, id, i);
 
@@ -236,7 +342,10 @@
 
     canvas.appendChild(el);
 
-    if (window.SimCanvas) window.SimCanvas.applyTransformToElement(el);
+    // Apply transform
+    if (window.SimCanvas) {
+      window.SimCanvas.applyTransformToElement(el);
+    }
 
     simState.placedComponents.push({
       id: id, compId: compId, el: el, x: x, y: y,
@@ -244,16 +353,25 @@
       compState: { active: false, energized: false, closed: false }
     });
 
-    if (window.SimCanvas) window.SimCanvas.updateComponentCount(simState.placedComponents.length);
+    if (window.SimCanvas) {
+      window.SimCanvas.updateComponentCount(simState.placedComponents.length);
+    }
+
+    console.log('Added: ' + def.name + ' id=' + id);
   }
 
+  // ========== DELETE COMPONENT ==========
   function deleteComponent(id) {
     var comp = getComponentById(id);
-    if (comp && comp.el && comp.el.parentNode) comp.el.parentNode.removeChild(comp.el);
+    if (comp && comp.el && comp.el.parentNode) {
+      comp.el.parentNode.removeChild(comp.el);
+    }
     simState.placedComponents = simState.placedComponents.filter(function (c) { return c.id !== id; });
-    if (window.SimWires) window.SimWires.deleteConnectionsForComponent(id);
+    if (window.SimWires) {
+      window.SimWires.deleteConnectionsForComponent(id);
+      window.SimWires.drawAllWires(window.SimEngine ? window.SimEngine.isActive() : false);
+    }
     if (window.SimSelection) window.SimSelection.removeComponent(id, simState.placedComponents);
-    if (window.SimWires) window.SimWires.drawAllWires(window.SimEngine ? window.SimEngine.isActive() : false);
     if (simState.placedComponents.length === 0) {
       var ph = document.getElementById('canvasPlaceholder');
       if (ph) ph.style.display = '';
@@ -262,6 +380,7 @@
       window.SimCanvas.updateComponentCount(simState.placedComponents.length);
       window.SimCanvas.updateConnectionCount(window.SimWires ? window.SimWires.getConnectionCount() : 0);
     }
+    if (window.SimProperties) window.SimProperties.hide();
   }
 
   function getComponentById(id) {
@@ -271,28 +390,33 @@
     return null;
   }
 
+  // ========== INIT ==========
   function initSimulator() {
     simState.placedComponents = [];
     simState.componentIdCounter = 0;
 
+    console.log('Initializing simulator...');
+
     if (window.SimCanvas) window.SimCanvas.init('simCanvas');
-    if (window.SimDrag) window.SimDrag.init(simState, document.getElementById('simCanvas'));
-    if (window.SimSelection) window.SimSelection.init();
     if (window.SimWires) window.SimWires.init(simState, window.SimCanvas);
     if (window.SimEngine) window.SimEngine.init(simState);
+    if (window.SimSelection) window.SimSelection.init();
     if (window.SimProperties) window.SimProperties.init(simState);
 
     setupLibraryDirectly();
-    setupCanvasCallbacks();
     setupToolbarButtons();
     setupKeyboardShortcuts();
 
+    // Close properties button
     var closeBtn = document.getElementById('btnCloseProperties');
     if (closeBtn && window.SimProperties) {
       closeBtn.addEventListener('click', function () { window.SimProperties.hide(); });
     }
+
+    console.log('Simulator initialized');
   }
 
+  // ========== LIBRARY ==========
   function setupLibraryDirectly() {
     var scroll = document.getElementById('simLibraryScroll');
     var searchInput = document.getElementById('simLibrarySearch');
@@ -323,7 +447,7 @@
             if (window.SimHistory && window.SimEngine) {
               window.SimHistory.push(window.SimEngine.getStateSnapshot());
             }
-            addComponent(compId, 50 + Math.random() * 150, 50 + Math.random() * 150);
+            addComponent(compId, 60 + Math.random() * 120, 60 + Math.random() * 120);
           }
           return;
         }
@@ -345,59 +469,31 @@
       searchInput.addEventListener('input', function () {
         var query = this.value.toLowerCase().trim();
         var allItems = document.querySelectorAll('.sim-lib-item');
-        var categories = document.querySelectorAll('.sim-category');
-
         allItems.forEach(function (item) {
           var text = item.textContent.toLowerCase();
-          if (query === '' || text.indexOf(query) !== -1) {
-            item.style.display = '';
-          } else {
-            item.style.display = 'none';
-          }
-        });
-
-        categories.forEach(function (cat) {
-          var visible = cat.querySelectorAll('.sim-lib-item:not([style*="display: none"])');
-          var all = cat.querySelectorAll('.sim-lib-item');
-          if (query !== '' && all.length > 0 && visible.length === 0) {
-            cat.style.display = 'none';
-          } else {
-            cat.style.display = '';
-            if (query !== '') {
-              var catHeader = cat.querySelector('.sim-cat-header');
-              var catItems = cat.querySelector('.sim-cat-items');
-              if (catHeader && catItems) {
-                catItems.style.display = '';
-                var arrow = catHeader.querySelector('.sim-cat-arrow');
-                if (arrow) arrow.textContent = '▼';
-              }
-            }
-          }
+          item.style.display = (query === '' || text.indexOf(query) !== -1) ? '' : 'none';
         });
       });
     }
 
+    // Drop on canvas
     var canvas = document.getElementById('simCanvas');
     if (canvas) {
-      canvas.addEventListener('dragover', function (e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-      });
+      canvas.addEventListener('dragover', function (e) { e.preventDefault(); });
       canvas.addEventListener('drop', function (e) {
         e.preventDefault();
         var compId = e.dataTransfer.getData('text/plain');
-        if (compId && window.SimCanvas) {
-          var world = window.SimCanvas.screenToWorld(e.clientX, e.clientY);
-          var snapped = window.SimCanvas.snapPosition(world.x, world.y);
-          if (window.SimHistory && window.SimEngine) {
-            window.SimHistory.push(window.SimEngine.getStateSnapshot());
-          }
-          addComponent(compId, Math.max(0, snapped.x), Math.max(0, snapped.y));
+        if (compId) {
+          var rect = canvas.getBoundingClientRect();
+          var x = e.clientX - rect.left;
+          var y = e.clientY - rect.top;
+          addComponent(compId, Math.max(0, x - 35), Math.max(0, y - 20));
         }
       });
     }
   }
 
+  // ========== TOOLBAR ==========
   function setupToolbarButtons() {
     var bind = function (id, handler) {
       var el = document.getElementById(id);
@@ -411,10 +507,7 @@
           function (s) { window.SimEngine.restoreSnapshot(s); }
         );
         if (window.SimWires) window.SimWires.drawAllWires(window.SimEngine.isActive());
-        if (window.SimCanvas) {
-          window.SimCanvas.updateComponentCount(simState.placedComponents.length);
-          window.SimCanvas.updateConnectionCount(window.SimWires ? window.SimWires.getConnectionCount() : 0);
-        }
+        if (window.SimCanvas) window.SimCanvas.updateComponentCount(simState.placedComponents.length);
       }
     });
 
@@ -425,29 +518,29 @@
           function (s) { window.SimEngine.restoreSnapshot(s); }
         );
         if (window.SimWires) window.SimWires.drawAllWires(window.SimEngine.isActive());
-        if (window.SimCanvas) {
-          window.SimCanvas.updateComponentCount(simState.placedComponents.length);
-          window.SimCanvas.updateConnectionCount(window.SimWires ? window.SimWires.getConnectionCount() : 0);
-        }
+        if (window.SimCanvas) window.SimCanvas.updateComponentCount(simState.placedComponents.length);
       }
     });
 
     bind('simBtnRun', function () {
-      if (!window.SimEngine) return;
-      var result = window.SimEngine.run();
-      showFeedback(result.message, result.success ? 'success' : 'error');
+      if (window.SimEngine) {
+        var r = window.SimEngine.run();
+        showFeedback(r.message, r.success ? 'success' : 'error');
+      }
     });
 
     bind('simBtnStop', function () {
-      if (!window.SimEngine) return;
-      var result = window.SimEngine.stop();
-      showFeedback(result.message, 'info');
+      if (window.SimEngine) {
+        var r = window.SimEngine.stop();
+        showFeedback(r.message, 'info');
+      }
     });
 
     bind('simBtnValidate', function () {
-      if (!window.SimValidation || !window.SimWires) return;
-      var v = window.SimValidation.validate(simState.placedComponents, window.SimWires.getConnections());
-      showFeedback(v.valid ? '✅ الدائرة صحيحة!' : '⚠️ ' + v.issues.join(' | '), v.valid ? 'success' : 'error');
+      if (window.SimValidation && window.SimWires) {
+        var v = window.SimValidation.validate(simState.placedComponents, window.SimWires.getConnections());
+        showFeedback(v.valid ? '✅ الدائرة صحيحة!' : '⚠️ ' + v.issues.join(' | '), v.valid ? 'success' : 'error');
+      }
     });
 
     bind('simBtnZoomIn', function () { if (window.SimCanvas) window.SimCanvas.zoomIn(); });
@@ -458,7 +551,7 @@
 
     bind('simBtnClearAll', function () {
       if (simState.placedComponents.length === 0) return;
-      if (!confirm('هل أنت متأكد من مسح جميع العناصر؟')) return;
+      if (!confirm('مسح جميع العناصر؟')) return;
       if (window.SimHistory && window.SimEngine) window.SimHistory.push(window.SimEngine.getStateSnapshot());
       var canvas = document.getElementById('simCanvas');
       if (canvas) {
@@ -471,50 +564,23 @@
       if (window.SimProperties) window.SimProperties.hide();
       var ph = document.getElementById('canvasPlaceholder');
       if (ph) ph.style.display = '';
-      if (window.SimCanvas) {
-        window.SimCanvas.updateComponentCount(0);
-        window.SimCanvas.updateConnectionCount(0);
-      }
-      if (window.SimEngine) window.SimEngine.stop();
-      showFeedback('🗑️ تم مسح جميع العناصر', 'info');
+      if (window.SimCanvas) { window.SimCanvas.updateComponentCount(0); window.SimCanvas.updateConnectionCount(0); }
+      showFeedback('🗑️ تم المسح', 'info');
     });
 
     bind('simBtnSave', function () {
       if (!window.SimProject) return;
-      var name = prompt('📁 اسم المشروع:');
+      var name = prompt('اسم المشروع:');
       if (!name) return;
-      var r = window.SimProject.save(name, { placedComponents: simState.placedComponents, componentIdCounter: simState.componentIdCounter }, window.SimWires);
+      var r = window.SimProject.save(name, simState, window.SimWires);
       showFeedback(r.message, r.success ? 'success' : 'error');
-    });
-
-    bind('simBtnLoad', function () {
-      if (!window.SimProject) return;
-      var projects = window.SimProject.getAll();
-      if (projects.length === 0) { showFeedback('⚠️ لا توجد مشاريع', 'warning'); return; }
-      var list = '';
-      for (var i = 0; i < projects.length; i++) list += (i + 1) + '. ' + projects[i].name + '\n';
-      var choice = prompt('📂 اختر:\n\n' + list);
-      if (!choice) return;
-      var idx = parseInt(choice) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= projects.length) { showFeedback('⚠️ رقم غير صالح', 'error'); return; }
-      var r = window.SimProject.load(projects[idx].id);
-      if (r.success && window.SimEngine) {
-        window.SimEngine.restoreSnapshot(r.project.data);
-        if (window.SimWires) window.SimWires.drawAllWires(false);
-        if (window.SimCanvas) {
-          window.SimCanvas.updateComponentCount(simState.placedComponents.length);
-          window.SimCanvas.updateConnectionCount(window.SimWires.getConnectionCount());
-          window.SimCanvas.showPlaceholder(simState.placedComponents.length === 0);
-        }
-        showFeedback('✅ تم التحميل', 'success');
-      }
     });
 
     bind('simBtnExport', function () {
       if (!window.SimProject) return;
       var name = prompt('اسم الملف:', 'مشروع');
       if (!name) return;
-      var r = window.SimProject.exportToJSON({ placedComponents: simState.placedComponents, componentIdCounter: simState.componentIdCounter }, window.SimWires, name);
+      var r = window.SimProject.exportToJSON(simState, window.SimWires, name);
       showFeedback(r.message, 'success');
     });
 
@@ -531,82 +597,14 @@
             window.SimEngine.restoreSnapshot(r.project.data);
             if (window.SimWires) window.SimWires.drawAllWires(false);
             showFeedback('✅ تم الاستيراد', 'success');
-          } else {
-            showFeedback(r.message, 'error');
           }
         });
       };
       input.click();
     });
-
-    bind('simBtnProps', function () {
-      if (!window.SimSelection || !window.SimProperties) return;
-      var ids = window.SimSelection.getSelectedIds();
-      if (ids.length === 1) {
-        var comp = getComponentById(ids[0]);
-        if (comp) window.SimProperties.toggle(comp);
-      }
-    });
   }
 
-  function setupCanvasCallbacks() {
-    if (!window.SimCanvas) return;
-
-    window.SimCanvas.onMouseDown(function (e) {
-      if (e.target.closest('.sim-terminal')) return;
-      if (e.target.closest('.sim-comp-delete')) return;
-      var compEl = e.target.closest('.sim-component');
-      if (compEl) return;
-      if (e.target.closest('.sim-wire-path')) {
-        if (window.SimSelection) window.SimSelection.selectWire(e.target.closest('.sim-wire-path'));
-        return;
-      }
-      if (e.target.id === 'simCanvas' || e.target.closest('.canvas-placeholder') || e.target.closest('.sim-grid-svg')) {
-        if (window.SimSelection) window.SimSelection.clearAll(simState.placedComponents);
-        if (window.SimProperties) window.SimProperties.hide();
-      }
-    });
-
-    window.SimCanvas.onMouseMove(function (e) {
-      if (window.SimCanvas) {
-        var w = window.SimCanvas.screenToWorld(e.clientX, e.clientY);
-        window.SimCanvas.updatePositionInfo(w.x, w.y);
-      }
-      if (window.SimDrag && window.SimDrag.isDragging()) {
-        window.SimDrag.dragMove(e.clientX, e.clientY, window.SimCanvas, window.SimSelection);
-        if (window.SimWires) window.SimWires.drawAllWires(window.SimEngine ? window.SimEngine.isActive() : false);
-      }
-      if (window.SimWires && window.SimWires.isConnecting()) {
-        window.SimWires.updateTempWire(e.clientX, e.clientY);
-      }
-    });
-
-    window.SimCanvas.onMouseUp(function (e) {
-      if (window.SimDrag && window.SimDrag.isDragging()) {
-        var moved = window.SimDrag.endDrag();
-        if (moved && window.SimHistory && window.SimEngine) {
-          window.SimHistory.push(window.SimEngine.getStateSnapshot());
-        }
-        return;
-      }
-      if (window.SimWires && window.SimWires.isConnecting()) {
-        if (window.SimHistory && window.SimEngine) {
-          window.SimHistory.push(window.SimEngine.getStateSnapshot());
-        }
-        var r = window.SimWires.finishConnection(e.clientX, e.clientY);
-        if (r) {
-          if (r.success) {
-            window.SimWires.drawAllWires(window.SimEngine ? window.SimEngine.isActive() : false);
-            if (window.SimCanvas) window.SimCanvas.updateConnectionCount(window.SimWires.getConnectionCount());
-            showFeedback('✅ تم التوصيل', 'success');
-          } else {
-            showFeedback(r.message || '⚠️ فشل', 'error');
-          }
-        }
-      }
-    });
-  }
-
+  // ========== KEYBOARD ==========
   function setupKeyboardShortcuts() {
     if (keyboardHandler) document.removeEventListener('keydown', keyboardHandler);
     keyboardHandler = function (e) {
@@ -654,6 +652,7 @@
     fb._timeout = setTimeout(function () { fb.style.display = 'none'; }, 3000);
   }
 
+  // ========== PUBLIC API ==========
   window.getSimulatorHTML = getSimulatorHTML;
   window.initSimulator = initSimulator;
   window.SimAddComponent = addComponent;
