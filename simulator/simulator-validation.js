@@ -1,5 +1,5 @@
 /* ==========================================================================
-   DrDer Electronic - Circuit Validation
+   DrDer Electronic - Circuit Validation v4.0
    Checks circuit correctness, finds issues, validates connections
    ========================================================================== */
 (function () {
@@ -8,120 +8,141 @@
   window.SimValidation = {
     /* ========================================================================
        Validate the entire circuit
-       Returns { valid: boolean, issues: string[], warnings: string[] }
+       @param {Array} placedComponents - All placed components
+       @param {Array} connections - All wire connections
+       @returns {Object} { valid, issues, warnings }
        ======================================================================== */
-    validate(placedComponents, connections) {
-      const issues = [];
-      const warnings = [];
+    validate: function (placedComponents, connections) {
+      var issues = [];
+      var warnings = [];
 
-      if (placedComponents.length === 0) {
+      if (!placedComponents || placedComponents.length === 0) {
         issues.push('لا توجد أي عناصر في الدائرة');
-        return { valid: false, issues, warnings };
+        return { valid: false, issues: issues, warnings: warnings };
       }
 
-      // Check for power source
-      const hasSource = this._hasPowerSource(placedComponents);
+      if (!connections) connections = [];
+
+      var hasSource = this._hasPowerSource(placedComponents);
       if (!hasSource) {
         issues.push('لا يوجد مصدر طاقة. أضف بطارية أو مصدر تغذية.');
       }
 
-      // Check for load
-      const hasLoad = this._hasLoad(placedComponents);
+      var hasLoad = this._hasLoad(placedComponents);
       if (!hasLoad) {
         issues.push('لا يوجد حمل في الدائرة. أضف لمبة، محرك، أو أي حمل آخر.');
       }
 
-      // Check connections
       if (connections.length === 0 && placedComponents.length > 1) {
         warnings.push('لا توجد توصيلات بين العناصر');
       }
 
-      // Check for unconnected components
-      const connectedIds = new Set();
-      connections.forEach(c => {
-        connectedIds.add(c.fromCompId);
-        connectedIds.add(c.toCompId);
-      });
-
-      const unconnected = placedComponents.filter(c => !connectedIds.has(c.id));
-      if (unconnected.length > 0 && placedComponents.length > 1) {
-        warnings.push(`هناك ${unconnected.length} عناصر غير موصولة بالدائرة`);
+      var connectedIds = {};
+      for (var i = 0; i < connections.length; i++) {
+        connectedIds[connections[i].fromCompId] = true;
+        connectedIds[connections[i].toCompId] = true;
       }
 
-      // Check for short circuits
-      const hasShort = this._detectShortCircuit(placedComponents, connections);
-      if (hasShort) {
-        issues.push('⚠️ تم اكتشاف قصر كهربائي محتمل في الدائرة');
+      var unconnectedCount = 0;
+      for (var j = 0; j < placedComponents.length; j++) {
+        if (!connectedIds[placedComponents[j].id]) {
+          unconnectedCount++;
+        }
       }
 
-      // Check for open circuits
+      if (unconnectedCount > 0 && placedComponents.length > 1) {
+        warnings.push('هناك ' + unconnectedCount + ' عناصر غير موصولة بالدائرة');
+      }
+
       if (connections.length > 0 && hasSource && hasLoad) {
-        const hasOpenCircuit = this._detectOpenCircuit(placedComponents, connections);
-        if (hasOpenCircuit) {
+        var shortResult = this._detectShortCircuit(placedComponents, connections);
+        if (shortResult) {
+          issues.push('⚠️ تم اكتشاف قصر كهربائي محتمل في الدائرة');
+        }
+
+        var openResult = this._detectOpenCircuit(placedComponents, connections);
+        if (openResult) {
           warnings.push('قد تكون هناك دائرة مفتوحة - تحقق من توصيل جميع العناصر');
         }
       }
 
       return {
         valid: issues.length === 0,
-        issues,
-        warnings
+        issues: issues,
+        warnings: warnings
       };
     },
 
     /* ========================================================================
        Check if any power source exists
        ======================================================================== */
-    _hasPowerSource(components) {
-      const sourceTypes = ['battery', 'dc_supply', 'dc_supply_adj', 'ac_supply_1ph',
-                           'ac_supply_3ph', 'generator_dc', 'generator_ac',
-                           'solar_panel', 'power_supply'];
-      return components.some(c => {
-        const def = window.findComponentDef(c.compId);
-        return def && sourceTypes.includes(def.subtype);
-      });
+    _hasPowerSource: function (components) {
+      var sourceIds = [
+        'battery', 'battery_9v', 'battery_liion',
+        'dc_supply', 'dc_supply_adj',
+        'ac_supply_1ph', 'ac_supply_3ph',
+        'generator_dc', 'generator_ac',
+        'solar_panel', 'power_supply'
+      ];
+
+      for (var i = 0; i < components.length; i++) {
+        var def = window.findComponentDef(components[i].compId);
+        if (def && sourceIds.indexOf(def.id) !== -1) {
+          return true;
+        }
+      }
+      return false;
     },
 
     /* ========================================================================
        Check if any load exists
        ======================================================================== */
-    _hasLoad(components) {
-      const loadTypes = ['lamp', 'led', 'rgb_led', 'indicator', 'buzzer',
-                         'dc_motor', 'ac_1ph', 'ac_3ph', 'servo', 'stepper',
-                         'resistor', 'pot', 'ldr', 'ntc', 'ptc',
-                         'capacitor', 'capacitor_polar', 'capacitor_var',
-                         'inductor', 'choke',
-                         'diode', 'zener', 'schottky', 'bridge',
-                         'npn', 'pnp', 'mosfet_n', 'mosfet_p', 'igbt', 'triac', 'scr',
-                         '555', 'opamp', 'regulator',
-                         'relay_spdt', 'relay_dpdt', 'timer_on', 'timer_off',
-                         'contactor_3p', 'contactor_4p',
-                         'voltmeter', 'ammeter', 'multimeter', 'scope', 'wattmeter'];
-      return components.some(c => {
-        const def = window.findComponentDef(c.compId);
-        return def && loadTypes.includes(def.subtype);
-      });
+    _hasLoad: function (components) {
+      var loadTypes = [
+        'lamp', 'led', 'rgb_led', 'indicator', 'buzzer',
+        'dc_motor', 'ac_1ph', 'ac_3ph', 'servo', 'stepper',
+        'resistor', 'pot', 'ldr', 'ntc', 'ptc',
+        'capacitor', 'capacitor_polar', 'capacitor_var',
+        'inductor', 'choke',
+        'diode', 'zener', 'schottky', 'bridge',
+        'npn', 'pnp', 'mosfet_n', 'mosfet_p', 'igbt', 'triac', 'scr',
+        '555', 'opamp', 'regulator',
+        'relay_spdt', 'relay_dpdt', 'timer_on', 'timer_off',
+        'contactor_3p', 'contactor_4p',
+        'voltmeter', 'ammeter', 'multimeter', 'scope', 'wattmeter'
+      ];
+
+      for (var i = 0; i < components.length; i++) {
+        var def = window.findComponentDef(components[i].compId);
+        if (def && loadTypes.indexOf(def.subtype) !== -1) {
+          return true;
+        }
+      }
+      return false;
     },
 
     /* ========================================================================
        Detect potential short circuits
        ======================================================================== */
-    _detectShortCircuit(components, connections) {
-      const sources = components.filter(c => {
-        const def = window.findComponentDef(c.compId);
-        return def && (def.subtype === 'battery' || def.subtype === 'dc' || def.subtype === 'dc_adj');
-      });
+    _detectShortCircuit: function (components, connections) {
+      if (!connections || connections.length === 0) return false;
 
-      for (const source of sources) {
-        const sourceTerminals = this._getConnectedTerminals(source.id, connections);
+      var sources = [];
+      for (var i = 0; i < components.length; i++) {
+        var def = window.findComponentDef(components[i].compId);
+        if (def && (def.subtype === 'battery' || def.subtype === 'dc' || def.subtype === 'dc_adj')) {
+          sources.push(components[i]);
+        }
+      }
 
-        // Check if positive and negative terminals are directly connected
-        const def = window.findComponentDef(source.compId);
-        const terminalCount = def ? def.terminals : 2;
+      for (var s = 0; s < sources.length; s++) {
+        var source = sources[s];
+        var def = window.findComponentDef(source.compId);
+        var terminalCount = def ? (def.terminals || 2) : 2;
 
-        for (let i = 0; i < terminalCount; i++) {
-          for (let j = i + 1; j < terminalCount; j++) {
-            if (this._areTerminalsConnected(source.id, i, source.id, j, connections, components)) {
+        for (var t1 = 0; t1 < terminalCount; t1++) {
+          for (var t2 = t1 + 1; t2 < terminalCount; t2++) {
+            if (this._areTerminalsConnected(source.id, t1, source.id, t2, connections, components, 0)) {
               return true;
             }
           }
@@ -134,94 +155,115 @@
     /* ========================================================================
        Detect open circuits
        ======================================================================== */
-    _detectOpenCircuit(components, connections) {
-      const sources = components.filter(c => {
-        const def = window.findComponentDef(c.compId);
-        return def && (def.type === 'source');
-      });
+    _detectOpenCircuit: function (components, connections) {
+      if (!connections || connections.length === 0) return false;
 
-      const loads = components.filter(c => {
-        const def = window.findComponentDef(c.compId);
-        return def && (def.type === 'load' || def.type === 'motor' || def.type === 'passive');
-      });
+      var sources = [];
+      var loads = [];
+
+      for (var i = 0; i < components.length; i++) {
+        var def = window.findComponentDef(components[i].compId);
+        if (!def) continue;
+        if (def.type === 'source') sources.push(components[i]);
+        if (def.type === 'load' || def.type === 'motor' || def.type === 'passive' ||
+            def.type === 'relay' || def.type === 'contactor') {
+          loads.push(components[i]);
+        }
+      }
 
       if (sources.length === 0 || loads.length === 0) return false;
 
-      const visited = new Set();
+      var visited = {};
 
-      const dfs = (compId) => {
-        if (visited.has(compId)) return;
-        visited.add(compId);
+      var dfs = function (compId) {
+        if (visited[compId]) return;
+        visited[compId] = true;
 
-        connections.forEach(conn => {
+        for (var i = 0; i < connections.length; i++) {
+          var conn = connections[i];
           if (conn.fromCompId === compId) dfs(conn.toCompId);
           if (conn.toCompId === compId) dfs(conn.fromCompId);
-        });
+        }
       };
 
-      sources.forEach(s => dfs(s.id));
+      for (var s = 0; s < sources.length; s++) {
+        dfs(sources[s].id);
+      }
 
-      return !loads.every(l => visited.has(l.id));
+      for (var l = 0; l < loads.length; l++) {
+        if (!visited[loads[l].id]) return true;
+      }
+
+      return false;
     },
 
     /* ========================================================================
-       Get connected terminals for a component
+       Check if two terminals are connected through any path
        ======================================================================== */
-    _getConnectedTerminals(compId, connections) {
-      const terminals = [];
-      connections.forEach(conn => {
-        if (conn.fromCompId === compId) terminals.push(conn.fromTerminal);
-        if (conn.toCompId === compId) terminals.push(conn.toTerminal);
-      });
-      return terminals;
+    _areTerminalsConnected: function (fromCompId, fromTerm, toCompId, toTerm, connections, components, depth) {
+      if (depth > 50) return false;
+
+      var key = fromCompId + '-' + fromTerm;
+      if (this._visitedKeys && this._visitedKeys[key]) return false;
+      if (!this._visitedKeys) this._visitedKeys = {};
+      this._visitedKeys[key] = true;
+
+      if (fromCompId === toCompId) {
+        for (var i = 0; i < connections.length; i++) {
+          var c = connections[i];
+          if ((c.fromCompId === fromCompId && c.fromTerminal === toTerm) ||
+              (c.toCompId === fromCompId && c.toTerminal === toTerm)) {
+            return true;
+          }
+        }
+      }
+
+      var comp = null;
+      for (var j = 0; j < components.length; j++) {
+        if (components[j].id === fromCompId) {
+          comp = components[j];
+          break;
+        }
+      }
+      if (!comp) return false;
+
+      var def = window.findComponentDef(comp.compId);
+      if (!def) return false;
+
+      if (def.type === 'switch') {
+        if (def.subtype === 'push_no' || def.subtype === 'limit_no' || def.subtype === 'float') {
+          if (!comp.compState || !comp.compState.closed) return false;
+        }
+        if (def.subtype === 'push_nc' || def.subtype === 'limit_nc' || def.subtype === 'emergency') {
+          if (comp.compState && comp.compState.pressed) return false;
+        }
+      }
+      if (def.type === 'protection') {
+        if (comp.compState && comp.compState.tripped) return false;
+      }
+
+      for (var k = 0; k < connections.length; k++) {
+        var conn = connections[k];
+        if (conn.fromCompId === fromCompId && conn.fromTerminal !== fromTerm) {
+          if (this._areTerminalsConnected(conn.toCompId, conn.toTerminal, toCompId, toTerm, connections, components, depth + 1)) {
+            return true;
+          }
+        }
+        if (conn.toCompId === fromCompId && conn.toTerminal !== fromTerm) {
+          if (this._areTerminalsConnected(conn.fromCompId, conn.fromTerminal, toCompId, toTerm, connections, components, depth + 1)) {
+            return true;
+          }
+        }
+      }
+
+      return false;
     },
 
     /* ========================================================================
-       Check if two terminals are connected (directly or through path)
+       Reset visited keys before new search
        ======================================================================== */
-    _areTerminalsConnected(fromCompId, fromTerm, toCompId, toTerm, connections, components) {
-      const visited = new Set();
-
-      const dfs = (compId, fromTerminal) => {
-        const key = `${compId}-${fromTerminal}`;
-        if (visited.has(key)) return false;
-        visited.add(key);
-
-        if (compId === toCompId) {
-          const terminals = this._getConnectedTerminals(compId, connections);
-          if (terminals.includes(toTerm)) return true;
-        }
-
-        for (const conn of connections) {
-          if (conn.fromCompId === compId && conn.fromTerminal !== fromTerminal) {
-            const comp = components.find(c => c.id === conn.toCompId);
-            if (comp) {
-              const def = window.findComponentDef(comp.compId);
-              // Only trace through passive and closed components
-              if (def && (def.type === 'passive' || def.type === 'terminal' ||
-                  def.type === 'protection' || def.type === 'contactor' ||
-                  (def.type === 'switch' && comp.compState && comp.compState.closed))) {
-                if (dfs(conn.toCompId, conn.toTerminal)) return true;
-              }
-            }
-          }
-          if (conn.toCompId === compId && conn.toTerminal !== fromTerminal) {
-            const comp = components.find(c => c.id === conn.fromCompId);
-            if (comp) {
-              const def = window.findComponentDef(comp.compId);
-              if (def && (def.type === 'passive' || def.type === 'terminal' ||
-                  def.type === 'protection' || def.type === 'contactor' ||
-                  (def.type === 'switch' && comp.compState && comp.compState.closed))) {
-                if (dfs(conn.fromCompId, conn.fromTerminal)) return true;
-              }
-            }
-          }
-        }
-
-        return false;
-      };
-
-      return dfs(fromCompId, fromTerm);
+    _resetVisited: function () {
+      this._visitedKeys = {};
     }
   };
 })();
