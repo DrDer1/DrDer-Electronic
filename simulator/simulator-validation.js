@@ -1,67 +1,84 @@
 /* ==========================================================================
-   DrDer Electronic - Circuit Validation v4.0
-   Checks circuit correctness, finds issues, validates connections
+   DrDer Electronic Simulator 2.0
+   simulator-validation.js - Circuit Validator
+   
+   Responsibility:
+   - Validate circuit before simulation
+   - Detect: missing source, missing load, unconnected components,
+     short circuits, open circuits
+   - No DOM access, pure data validation
    ========================================================================== */
+
 (function () {
   'use strict';
 
+  /**
+   * SimValidation - Circuit validation logic
+   * All functions are pure: input components+wires, output results
+   */
   window.SimValidation = {
-    /* ========================================================================
-       Validate the entire circuit
-       @param {Array} placedComponents - All placed components
-       @param {Array} connections - All wire connections
-       @returns {Object} { valid, issues, warnings }
-       ======================================================================== */
-    validate: function (placedComponents, connections) {
+
+    /**
+     * Validate the entire circuit
+     * @param {Array} components - All placed components
+     * @param {Array} wires - All wire connections
+     * @returns {Object} { valid: boolean, issues: string[], warnings: string[] }
+     */
+    validate: function (components, wires) {
       var issues = [];
       var warnings = [];
 
-      if (!placedComponents || placedComponents.length === 0) {
+      if (!components || components.length === 0) {
         issues.push('لا توجد أي عناصر في الدائرة');
         return { valid: false, issues: issues, warnings: warnings };
       }
 
-      if (!connections) connections = [];
+      if (!wires) wires = [];
 
-      var hasSource = this._hasPowerSource(placedComponents);
-      if (!hasSource) {
+      // Check for power source
+      if (!this._hasPowerSource(components)) {
         issues.push('لا يوجد مصدر طاقة. أضف بطارية أو مصدر تغذية.');
       }
 
-      var hasLoad = this._hasLoad(placedComponents);
-      if (!hasLoad) {
+      // Check for load
+      if (!this._hasLoad(components)) {
         issues.push('لا يوجد حمل في الدائرة. أضف لمبة، محرك، أو أي حمل آخر.');
       }
 
-      if (connections.length === 0 && placedComponents.length > 1) {
+      // Check for connections
+      if (wires.length === 0 && components.length > 1) {
         warnings.push('لا توجد توصيلات بين العناصر');
       }
 
-      var connectedIds = {};
-      for (var i = 0; i < connections.length; i++) {
-        connectedIds[connections[i].fromCompId] = true;
-        connectedIds[connections[i].toCompId] = true;
-      }
+      // Find unconnected components
+      var connectedIds = this._getConnectedIds(wires);
+      var unconnected = [];
 
-      var unconnectedCount = 0;
-      for (var j = 0; j < placedComponents.length; j++) {
-        if (!connectedIds[placedComponents[j].id]) {
-          unconnectedCount++;
+      for (var i = 0; i < components.length; i++) {
+        if (!connectedIds[components[i].id]) {
+          unconnected.push(components[i].id);
         }
       }
 
-      if (unconnectedCount > 0 && placedComponents.length > 1) {
-        warnings.push('هناك ' + unconnectedCount + ' عناصر غير موصولة بالدائرة');
+      if (unconnected.length > 0 && components.length > 1) {
+        warnings.push('هناك ' + unconnected.length + ' عناصر غير موصولة بالدائرة');
       }
 
-      if (connections.length > 0 && hasSource && hasLoad) {
-        var shortResult = this._detectShortCircuit(placedComponents, connections);
-        if (shortResult) {
+      // Check for short circuits (if we have connections)
+      if (wires.length >= 2) {
+        var hasShort = this._detectShortCircuit(components, wires);
+        if (hasShort) {
           issues.push('⚠️ تم اكتشاف قصر كهربائي محتمل في الدائرة');
         }
+      }
 
-        var openResult = this._detectOpenCircuit(placedComponents, connections);
-        if (openResult) {
+      // Check for open circuits (if we have source + load + connections)
+      var hasSource = this._hasPowerSource(components);
+      var hasLoad = this._hasLoad(components);
+
+      if (hasSource && hasLoad && wires.length > 0) {
+        var hasOpen = this._detectOpenCircuit(components, wires);
+        if (hasOpen) {
           warnings.push('قد تكون هناك دائرة مفتوحة - تحقق من توصيل جميع العناصر');
         }
       }
@@ -73,78 +90,105 @@
       };
     },
 
-    /* ========================================================================
-       Check if any power source exists
-       ======================================================================== */
+    /* ======================================================================
+       Power Source Detection
+       ====================================================================== */
+
+    /**
+     * Check if any power source exists in the circuit
+     * @private
+     * @param {Array} components
+     * @returns {boolean}
+     */
     _hasPowerSource: function (components) {
-      var sourceIds = [
-        'battery', 'battery_9v', 'battery_liion',
-        'dc_supply', 'dc_supply_adj',
-        'ac_supply_1ph', 'ac_supply_3ph',
-        'generator_dc', 'generator_ac',
-        'solar_panel', 'power_supply'
-      ];
-
       for (var i = 0; i < components.length; i++) {
         var def = window.findComponentDef(components[i].compId);
-        if (def && sourceIds.indexOf(def.id) !== -1) {
+        if (def && def.type === 'source') {
           return true;
         }
       }
       return false;
     },
 
-    /* ========================================================================
-       Check if any load exists
-       ======================================================================== */
+    /* ======================================================================
+       Load Detection
+       ====================================================================== */
+
+    /**
+     * Check if any load exists in the circuit
+     * @private
+     * @param {Array} components
+     * @returns {boolean}
+     */
     _hasLoad: function (components) {
-      var loadTypes = [
-        'lamp', 'led', 'rgb_led', 'indicator', 'buzzer',
-        'dc_motor', 'ac_1ph', 'ac_3ph', 'servo', 'stepper',
-        'resistor', 'pot', 'ldr', 'ntc', 'ptc',
-        'capacitor', 'capacitor_polar', 'capacitor_var',
-        'inductor', 'choke',
-        'diode', 'zener', 'schottky', 'bridge',
-        'npn', 'pnp', 'mosfet_n', 'mosfet_p', 'igbt', 'triac', 'scr',
-        '555', 'opamp', 'regulator',
-        'relay_spdt', 'relay_dpdt', 'timer_on', 'timer_off',
-        'contactor_3p', 'contactor_4p',
-        'voltmeter', 'ammeter', 'multimeter', 'scope', 'wattmeter'
-      ];
+      var loadTypes = ['load', 'motor', 'relay', 'contactor', 'passive', 'semiconductor', 'ic', 'logic'];
 
       for (var i = 0; i < components.length; i++) {
         var def = window.findComponentDef(components[i].compId);
-        if (def && loadTypes.indexOf(def.subtype) !== -1) {
+        if (def && loadTypes.indexOf(def.type) !== -1) {
           return true;
         }
       }
       return false;
     },
 
-    /* ========================================================================
-       Detect potential short circuits
-       ======================================================================== */
-    _detectShortCircuit: function (components, connections) {
-      if (!connections || connections.length === 0) return false;
+    /* ======================================================================
+       Connected Components
+       ====================================================================== */
 
-      var sources = [];
+    /**
+     * Build a set of all component IDs that have at least one wire
+     * @private
+     * @param {Array} wires
+     * @returns {Object} Hash map of connected IDs
+     */
+    _getConnectedIds: function (wires) {
+      var ids = {};
+
+      for (var i = 0; i < wires.length; i++) {
+        ids[wires[i].fromCompId] = true;
+        ids[wires[i].toCompId] = true;
+      }
+
+      return ids;
+    },
+
+    /* ======================================================================
+       Short Circuit Detection
+       ====================================================================== */
+
+    /**
+     * Detect potential short circuits
+     * A short circuit occurs when two terminals of the same source
+     * are connected through a path with no load
+     * @private
+     * @param {Array} components
+     * @param {Array} wires
+     * @returns {boolean}
+     */
+    _detectShortCircuit: function (components, wires) {
+      // Find all DC sources (batteries, DC supplies)
+      var dcSources = [];
+
       for (var i = 0; i < components.length; i++) {
         var def = window.findComponentDef(components[i].compId);
-        if (def && (def.subtype === 'battery' || def.subtype === 'dc' || def.subtype === 'dc_adj')) {
-          sources.push(components[i]);
+        if (def && (def.subtype === 'battery' || def.subtype === 'dc')) {
+          dcSources.push(components[i]);
         }
       }
 
-      for (var s = 0; s < sources.length; s++) {
-        var source = sources[s];
-        var def = window.findComponentDef(source.compId);
-        var terminalCount = def ? (def.terminals || 2) : 2;
+      // Build adjacency graph
+      var graph = this._buildGraph(components, wires);
 
-        for (var t1 = 0; t1 < terminalCount; t1++) {
-          for (var t2 = t1 + 1; t2 < terminalCount; t2++) {
-            if (this._areTerminalsConnected(source.id, t1, source.id, t2, connections, components, 0)) {
-              return true;
-            }
+      // For each DC source with 2 terminals, check if terminals are connected
+      // through a path that has no load
+      for (var s = 0; s < dcSources.length; s++) {
+        var source = dcSources[s];
+        var def = window.findComponentDef(source.compId);
+        if (def && def.terminals === 2) {
+          // Check if terminal 0 and terminal 1 are connected
+          if (this._areTerminalsConnected(source.id, 0, source.id, 1, graph, components, {})) {
+            return true;
           }
         }
       }
@@ -152,44 +196,43 @@
       return false;
     },
 
-    /* ========================================================================
-       Detect open circuits
-       ======================================================================== */
-    _detectOpenCircuit: function (components, connections) {
-      if (!connections || connections.length === 0) return false;
+    /* ======================================================================
+       Open Circuit Detection
+       ====================================================================== */
 
+    /**
+     * Detect open circuits
+     * An open circuit exists if there are loads not reachable from any source
+     * @private
+     * @param {Array} components
+     * @param {Array} wires
+     * @returns {boolean}
+     */
+    _detectOpenCircuit: function (components, wires) {
       var sources = [];
       var loads = [];
 
       for (var i = 0; i < components.length; i++) {
         var def = window.findComponentDef(components[i].compId);
-        if (!def) continue;
-        if (def.type === 'source') sources.push(components[i]);
-        if (def.type === 'load' || def.type === 'motor' || def.type === 'passive' ||
-            def.type === 'relay' || def.type === 'contactor') {
+        if (def && def.type === 'source') {
+          sources.push(components[i]);
+        }
+        if (def && (def.type === 'load' || def.type === 'motor')) {
           loads.push(components[i]);
         }
       }
 
       if (sources.length === 0 || loads.length === 0) return false;
 
+      var graph = this._buildGraph(components, wires);
       var visited = {};
 
-      var dfs = function (compId) {
-        if (visited[compId]) return;
-        visited[compId] = true;
-
-        for (var i = 0; i < connections.length; i++) {
-          var conn = connections[i];
-          if (conn.fromCompId === compId) dfs(conn.toCompId);
-          if (conn.toCompId === compId) dfs(conn.fromCompId);
-        }
-      };
-
+      // DFS from all sources
       for (var s = 0; s < sources.length; s++) {
-        dfs(sources[s].id);
+        this._dfs(sources[s].id, graph, visited);
       }
 
+      // Check if any load is not visited
       for (var l = 0; l < loads.length; l++) {
         if (!visited[loads[l].id]) return true;
       }
@@ -197,73 +240,91 @@
       return false;
     },
 
-    /* ========================================================================
-       Check if two terminals are connected through any path
-       ======================================================================== */
-    _areTerminalsConnected: function (fromCompId, fromTerm, toCompId, toTerm, connections, components, depth) {
-      if (depth > 50) return false;
+    /* ======================================================================
+       Graph Helpers
+       ====================================================================== */
 
+    /**
+     * Build adjacency graph from wires
+     * @private
+     * @param {Array} components
+     * @param {Array} wires
+     * @returns {Object} Adjacency list
+     */
+    _buildGraph: function (components, wires) {
+      var graph = {};
+
+      for (var i = 0; i < components.length; i++) {
+        graph[components[i].id] = [];
+      }
+
+      for (var w = 0; w < wires.length; w++) {
+        var wire = wires[w];
+        if (!graph[wire.fromCompId]) graph[wire.fromCompId] = [];
+        if (!graph[wire.toCompId]) graph[wire.toCompId] = [];
+
+        if (graph[wire.fromCompId].indexOf(wire.toCompId) === -1) {
+          graph[wire.fromCompId].push(wire.toCompId);
+        }
+        if (graph[wire.toCompId].indexOf(wire.fromCompId) === -1) {
+          graph[wire.toCompId].push(wire.fromCompId);
+        }
+      }
+
+      return graph;
+    },
+
+    /**
+     * Depth-First Search
+     * @private
+     * @param {number} nodeId - Starting node
+     * @param {Object} graph - Adjacency list
+     * @param {Object} visited - Visited nodes hash
+     */
+    _dfs: function (nodeId, graph, visited) {
+      if (visited[nodeId]) return;
+      visited[nodeId] = true;
+
+      var neighbors = graph[nodeId];
+      if (!neighbors) return;
+
+      for (var i = 0; i < neighbors.length; i++) {
+        this._dfs(neighbors[i], graph, visited);
+      }
+    },
+
+    /**
+     * Check if two terminals are connected through any path
+     * Used for short circuit detection
+     * @private
+     * @param {number} fromCompId - Start component
+     * @param {number} fromTerm - Start terminal
+     * @param {number} toCompId - Target component
+     * @param {number} toTerm - Target terminal
+     * @param {Object} graph - Adjacency graph
+     * @param {Array} components - All components
+     * @param {Object} visited - Visited hash
+     * @returns {boolean}
+     */
+    _areTerminalsConnected: function (fromCompId, fromTerm, toCompId, toTerm, graph, components, visited) {
       var key = fromCompId + '-' + fromTerm;
-      if (this._visitedKeys && this._visitedKeys[key]) return false;
-      if (!this._visitedKeys) this._visitedKeys = {};
-      this._visitedKeys[key] = true;
+      if (visited[key]) return false;
+      visited[key] = true;
 
-      if (fromCompId === toCompId) {
-        for (var i = 0; i < connections.length; i++) {
-          var c = connections[i];
-          if ((c.fromCompId === fromCompId && c.fromTerminal === toTerm) ||
-              (c.toCompId === fromCompId && c.toTerminal === toTerm)) {
-            return true;
-          }
-        }
+      if (fromCompId === toCompId && fromTerm !== toTerm) {
+        return true;
       }
 
-      var comp = null;
-      for (var j = 0; j < components.length; j++) {
-        if (components[j].id === fromCompId) {
-          comp = components[j];
-          break;
-        }
-      }
-      if (!comp) return false;
+      var neighbors = graph[fromCompId] || [];
 
-      var def = window.findComponentDef(comp.compId);
-      if (!def) return false;
-
-      if (def.type === 'switch') {
-        if (def.subtype === 'push_no' || def.subtype === 'limit_no' || def.subtype === 'float') {
-          if (!comp.compState || !comp.compState.closed) return false;
-        }
-        if (def.subtype === 'push_nc' || def.subtype === 'limit_nc' || def.subtype === 'emergency') {
-          if (comp.compState && comp.compState.pressed) return false;
-        }
-      }
-      if (def.type === 'protection') {
-        if (comp.compState && comp.compState.tripped) return false;
-      }
-
-      for (var k = 0; k < connections.length; k++) {
-        var conn = connections[k];
-        if (conn.fromCompId === fromCompId && conn.fromTerminal !== fromTerm) {
-          if (this._areTerminalsConnected(conn.toCompId, conn.toTerminal, toCompId, toTerm, connections, components, depth + 1)) {
-            return true;
-          }
-        }
-        if (conn.toCompId === fromCompId && conn.toTerminal !== fromTerm) {
-          if (this._areTerminalsConnected(conn.fromCompId, conn.fromTerminal, toCompId, toTerm, connections, components, depth + 1)) {
-            return true;
-          }
+      for (var i = 0; i < neighbors.length; i++) {
+        if (this._areTerminalsConnected(neighbors[i], 0, toCompId, toTerm, graph, components, visited)) {
+          return true;
         }
       }
 
       return false;
-    },
-
-    /* ========================================================================
-       Reset visited keys before new search
-       ======================================================================== */
-    _resetVisited: function () {
-      this._visitedKeys = {};
     }
   };
+
 })();
