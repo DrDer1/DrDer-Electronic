@@ -3,66 +3,55 @@
    simulator-events.js - Unified Event Manager
    
    Responsibility:
-   - ALL pointer events in ONE place (pointerdown, pointermove, pointerup)
-   - ALL keyboard events in ONE place
-   - Delegates to drag, wire, selection, and canvas modules
-   - No other file registers event listeners
+   - ALL pointer events in ONE place
+   - Long press (500ms) to start drag or wire
+   - Short press for selection
+   - Pan with middle button or Alt+Click
    ========================================================================== */
 
 (function () {
   'use strict';
 
-  /**
-   * SimEvents - The single event manager for the entire simulator
-   * All user input flows through this module
-   */
   window.SimEvents = {
 
-    /** @type {HTMLElement} The canvas element */
     _canvas: null,
 
-    /** @type {boolean} Is panning with middle button or Alt+Click */
+    /* ===== Long Press Timers ===== */
+    _longPressTimer: null,
+    _longPressThreshold: 500, // 500ms for long press
+
+    /* ===== Pan State ===== */
     _isPanning: false,
-
-    /** @type {number} Pan start X */
     _panStartX: 0,
-
-    /** @type {number} Pan start Y */
     _panStartY: 0,
 
-    /** @type {boolean} Is currently dragging a component */
+    /* ===== Drag State ===== */
     _isDragging: false,
-
-    /** @type {Object} Drag state { compId, startX, startY, startLeft, startTop } */
     _drag: null,
+    _dragStarted: false, // True after long press triggers drag
 
-    /** @type {boolean} Is currently creating a wire */
+    /* ===== Wire State ===== */
     _isWiring: false,
-
-    /** @type {Object} Wire state { compId, termIdx } */
     _wire: null,
+    _wireStarted: false, // True after long press triggers wire
 
-    /** @type {Function} Bound pointerdown handler for removal */
+    /* ===== Pointer Tracking ===== */
+    _pointerDownTime: 0,
+    _pointerDownX: 0,
+    _pointerDownY: 0,
+    _pointerMoved: false,
+    _moveThreshold: 5, // pixels - ignore tiny movements
+
+    /* ===== Bound Handlers ===== */
     _boundPointerDown: null,
-
-    /** @type {Function} Bound pointermove handler for removal */
     _boundPointerMove: null,
-
-    /** @type {Function} Bound pointerup handler for removal */
     _boundPointerUp: null,
-
-    /** @type {Function} Bound keydown handler for removal */
     _boundKeyDown: null,
 
     /* ======================================================================
        Initialization
        ====================================================================== */
 
-    /**
-     * Initialize the event manager
-     * Registers all event listeners on the canvas
-     * @param {string} canvasId - ID of the canvas element
-     */
     init: function (canvasId) {
       this._canvas = document.getElementById(canvasId);
       if (!this._canvas) {
@@ -72,7 +61,6 @@
 
       var self = this;
 
-      // Pointer Events (work on mouse, touch, pen)
       this._boundPointerDown = function (e) { self._onPointerDown(e); };
       this._boundPointerMove = function (e) { self._onPointerMove(e); };
       this._boundPointerUp = function (e) { self._onPointerUp(e); };
@@ -83,24 +71,18 @@
       this._canvas.addEventListener('pointerleave', this._boundPointerUp);
       this._canvas.addEventListener('pointercancel', this._boundPointerUp);
 
-      // Prevent context menu on long press (mobile)
       this._canvas.addEventListener('contextmenu', function (e) {
         e.preventDefault();
       });
 
-      // Wheel for zoom
       this._canvas.addEventListener('wheel', function (e) {
         self._onWheel(e);
       }, { passive: false });
 
-      // Keyboard
       this._boundKeyDown = function (e) { self._onKeyDown(e); };
       document.addEventListener('keydown', this._boundKeyDown);
     },
 
-    /**
-     * Remove all event listeners (called when leaving simulator page)
-     */
     destroy: function () {
       if (this._canvas) {
         if (this._boundPointerDown) this._canvas.removeEventListener('pointerdown', this._boundPointerDown);
@@ -114,31 +96,28 @@
       if (this._boundKeyDown) {
         document.removeEventListener('keydown', this._boundKeyDown);
       }
+      this._clearLongPressTimer();
     },
 
     /* ======================================================================
-       Pointer Down Handler
+       Pointer Down
        ====================================================================== */
 
-    /**
-     * Handle pointerdown event
-     * Determines what the user is trying to do:
-     *   - Pan (middle button or Alt+Click)
-     *   - Start wire (click on terminal)
-     *   - Start drag (click on component)
-     *   - Select nothing (click on empty space)
-     * @private
-     * @param {PointerEvent} e
-     */
     _onPointerDown: function (e) {
-      // Update canvas rect
       if (window.SimCanvas && window.SimCanvas._canvasRect) {
         window.SimCanvas._canvasRect = this._canvas.getBoundingClientRect();
       }
 
+      // Record pointer position and time
+      this._pointerDownTime = Date.now();
+      this._pointerDownX = e.clientX;
+      this._pointerDownY = e.clientY;
+      this._pointerMoved = false;
+
       // --- PAN: Middle button or Alt+Left click ---
       if (e.button === 1 || (e.button === 0 && e.altKey)) {
         e.preventDefault();
+        this._clearLongPressTimer();
         this._isPanning = true;
 
         var state = window.SimState;
@@ -150,11 +129,20 @@
         return;
       }
 
-      // Left click only for other actions
       if (e.button !== 0) return;
 
-      // --- WIRE: Click on a terminal ---
+      // --- Check target ---
       var terminal = e.target.closest('.sim-terminal');
+      var componentEl = e.target.closest('.sim-component');
+      var deleteBtn = e.target.closest('.sim-comp-delete');
+
+      // Click on delete button - handle immediately
+      if (deleteBtn) {
+        this._clearLongPressTimer();
+        return;
+      }
+
+      // Click on terminal - prepare for long press wire
       if (terminal) {
         e.preventDefault();
         e.stopPropagation();
@@ -163,88 +151,42 @@
         var termIdx = parseInt(terminal.getAttribute('data-terminal-index'));
 
         if (!isNaN(compId) && !isNaN(termIdx)) {
-          this._isWiring = true;
-          this._wire = { compId: compId, termIdx: termIdx };
+          this._canvas.setPointerCapture(e.pointerId);
 
-          // Set wire start in state
-          if (window.SimState) {
-            window.SimState.setWireStart({ compId: compId, termIdx: termIdx });
-          }
-
-          // Start drawing temp wire
-          if (window.SimWires) {
-            window.SimWires.startConnection(compId, termIdx, e.clientX, e.clientY);
-          }
+          // Start long press timer for wire
+          var self = this;
+          this._clearLongPressTimer();
+          this._longPressTimer = setTimeout(function () {
+            self._startWire(compId, termIdx, e);
+          }, this._longPressThreshold);
         }
-
-        this._canvas.setPointerCapture(e.pointerId);
         return;
       }
 
-      // --- DRAG: Click on a component ---
-      var componentEl = e.target.closest('.sim-component');
+      // Click on component - prepare for long press drag OR short press select
       if (componentEl) {
-        // Don't drag if clicking delete button
-        if (e.target.closest('.sim-comp-delete')) return;
-
         e.preventDefault();
 
         var cId = parseInt(componentEl.getAttribute('data-component-id'));
         if (!isNaN(cId)) {
-          this._isDragging = true;
+          this._canvas.setPointerCapture(e.pointerId);
 
-          var comp = window.SimState ? window.SimState.getComponent(cId) : null;
-          var left = comp ? comp.x : parseInt(componentEl.style.left) || 0;
-          var top = comp ? comp.y : parseInt(componentEl.style.top) || 0;
-
-          this._drag = {
-            compId: cId,
-            startX: e.clientX,
-            startY: e.clientY,
-            startLeft: left,
-            startTop: top
-          };
-
-          // Set drag target in state
-          if (window.SimState) {
-            window.SimState.setDragTarget({
-              compId: cId,
-              startX: e.clientX,
-              startY: e.clientY,
-              origX: left,
-              origY: top
-            });
-          }
-
-          // Visual feedback
-          componentEl.style.zIndex = '20';
-          componentEl.style.cursor = 'grabbing';
-          componentEl.style.borderColor = '#ffffff';
-
-          // Select component
-          if (window.SimState) {
-            window.SimState.selectComponent(cId, e.ctrlKey || e.metaKey);
-          }
-          if (window.SimSelection) {
-            window.SimSelection.selectComponent(cId, e.ctrlKey || e.metaKey, window.SimState.getComponents());
-          }
-
-          // Show properties if single selection
-          if (window.SimState && window.SimState.getSelectionCount() === 1) {
-            if (window.SimProperties) {
-              window.SimProperties.show(comp);
-            }
-          }
+          // Start long press timer for drag
+          var self = this;
+          this._clearLongPressTimer();
+          this._longPressTimer = setTimeout(function () {
+            self._startDrag(cId, componentEl, e);
+          }, this._longPressThreshold);
         }
-
-        this._canvas.setPointerCapture(e.pointerId);
         return;
       }
 
-      // --- EMPTY SPACE: Clear selection ---
+      // Click on empty space - clear selection immediately
       if (e.target === this._canvas ||
           e.target.closest('.canvas-placeholder') ||
           e.target.id === 'canvasGridSvg') {
+
+        this._clearLongPressTimer();
 
         if (window.SimState) {
           window.SimState.clearSelection();
@@ -259,20 +201,117 @@
     },
 
     /* ======================================================================
-       Pointer Move Handler
+       Start Drag (called after long press on component)
        ====================================================================== */
 
-    /**
-     * Handle pointermove event
-     * Three possible states:
-     *   1. Panning - move the view
-     *   2. Dragging - move the component
-     *   3. Wiring - update temp wire
-     * @private
-     * @param {PointerEvent} e
-     */
+    _startDrag: function (compId, componentEl, e) {
+      this._isDragging = true;
+      this._dragStarted = true;
+
+      var comp = window.SimState ? window.SimState.getComponent(compId) : null;
+      var left = comp ? comp.x : parseInt(componentEl.style.left) || 0;
+      var top = comp ? comp.y : parseInt(componentEl.style.top) || 0;
+
+      this._drag = {
+        compId: compId,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: left,
+        startTop: top
+      };
+
+      // Set drag target in state
+      if (window.SimState) {
+        window.SimState.setDragTarget({
+          compId: compId,
+          startX: e.clientX,
+          startY: e.clientY,
+          origX: left,
+          origY: top
+        });
+      }
+
+      // Visual feedback
+      componentEl.style.zIndex = '20';
+      componentEl.style.cursor = 'grabbing';
+      componentEl.style.borderColor = '#ffffff';
+
+      // Select component
+      if (window.SimState) {
+        window.SimState.selectComponent(compId, e.ctrlKey || e.metaKey);
+      }
+      if (window.SimSelection) {
+        window.SimSelection.selectComponent(compId, e.ctrlKey || e.metaKey, window.SimState.getComponents());
+      }
+
+      // Vibrate on mobile for haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+
+      // Show properties if single selection
+      if (window.SimState && window.SimState.getSelectionCount() === 1) {
+        if (window.SimProperties) {
+          window.SimProperties.show(comp);
+        }
+      }
+    },
+
+    /* ======================================================================
+       Start Wire (called after long press on terminal)
+       ====================================================================== */
+
+    _startWire: function (compId, termIdx, e) {
+      this._isWiring = true;
+      this._wireStarted = true;
+
+      this._wire = { compId: compId, termIdx: termIdx };
+
+      // Set wire start in state
+      if (window.SimState) {
+        window.SimState.setWireStart({ compId: compId, termIdx: termIdx });
+      }
+
+      // Start drawing temp wire
+      if (window.SimWires) {
+        window.SimWires.startConnection(compId, termIdx, e.clientX, e.clientY);
+      }
+
+      // Vibrate on mobile for haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+    },
+
+    /* ======================================================================
+       Clear Long Press Timer
+       ====================================================================== */
+
+    _clearLongPressTimer: function () {
+      if (this._longPressTimer) {
+        clearTimeout(this._longPressTimer);
+        this._longPressTimer = null;
+      }
+    },
+
+    /* ======================================================================
+       Pointer Move
+       ====================================================================== */
+
     _onPointerMove: function (e) {
-      // Update position display in status bar
+      // Track if pointer moved significantly
+      var dx = Math.abs(e.clientX - this._pointerDownX);
+      var dy = Math.abs(e.clientY - this._pointerDownY);
+      if (dx > this._moveThreshold || dy > this._moveThreshold) {
+        this._pointerMoved = true;
+      }
+
+      // Cancel long press if pointer moved too much
+      if (this._pointerMoved && !this._dragStarted && !this._wireStarted) {
+        this._clearLongPressTimer();
+      }
+
+      // Update position display
       if (window.SimCanvas) {
         var world = window.SimCanvas.screenToWorld(e.clientX, e.clientY);
         window.SimCanvas.updatePositionInfo(world.x, world.y);
@@ -294,18 +333,15 @@
       // --- DRAGGING ---
       if (this._isDragging && this._drag) {
         var zoom = window.SimState ? window.SimState.zoomLevel : 1;
-        var dx = (e.clientX - this._drag.startX) / zoom;
-        var dy = (e.clientY - this._drag.startY) / zoom;
+        var dragDx = (e.clientX - this._drag.startX) / zoom;
+        var dragDy = (e.clientY - this._drag.startY) / zoom;
 
-        // Free movement - NO snap during drag
-        var newX = this._drag.startLeft + dx;
-        var newY = this._drag.startTop + dy;
+        var newX = this._drag.startLeft + dragDx;
+        var newY = this._drag.startTop + dragDy;
 
-        // Clamp to canvas
         newX = Math.max(0, newX);
         newY = Math.max(0, newY);
 
-        // Update component position
         var comp = window.SimState ? window.SimState.getComponent(this._drag.compId) : null;
         if (comp) {
           comp.x = newX;
@@ -316,7 +352,6 @@
           }
         }
 
-        // Redraw wires
         if (window.SimWires) {
           window.SimWires.drawAllWires(window.SimState ? window.SimState.simulationActive : false);
         }
@@ -333,16 +368,12 @@
     },
 
     /* ======================================================================
-       Pointer Up Handler
+       Pointer Up
        ====================================================================== */
 
-    /**
-     * Handle pointerup event
-     * Finishes the current action (pan, drag, or wire)
-     * @private
-     * @param {PointerEvent} e
-     */
     _onPointerUp: function (e) {
+      this._clearLongPressTimer();
+
       // --- END PANNING ---
       if (this._isPanning) {
         this._isPanning = false;
@@ -353,6 +384,7 @@
       // --- END DRAGGING ---
       if (this._isDragging && this._drag) {
         this._isDragging = false;
+        this._dragStarted = false;
 
         var comp = window.SimState ? window.SimState.getComponent(this._drag.compId) : null;
         if (comp && comp.el) {
@@ -369,24 +401,20 @@
             comp.el.style.top = comp.y + 'px';
           }
 
-          // Check if actually moved
           var movedX = Math.abs(comp.x - this._drag.startLeft);
           var movedY = Math.abs(comp.y - this._drag.startTop);
 
           if (movedX > 1 || movedY > 1) {
-            // Save to history
             if (window.SimHistory) {
               window.SimHistory.push(window.SimState.getSnapshot());
             }
           }
         }
 
-        // Redraw wires after snap
         if (window.SimWires) {
           window.SimWires.drawAllWires(window.SimState ? window.SimState.simulationActive : false);
         }
 
-        // Clear drag state
         if (window.SimState) {
           window.SimState.clearDragTarget();
         }
@@ -398,8 +426,8 @@
       // --- END WIRING ---
       if (this._isWiring && this._wire) {
         this._isWiring = false;
+        this._wireStarted = false;
 
-        // Save state before finishing wire
         if (window.SimHistory && window.SimState) {
           window.SimHistory.push(window.SimState.getSnapshot());
         }
@@ -420,7 +448,6 @@
           }
         }
 
-        // Clear wire state
         if (window.SimState) {
           window.SimState.clearWireStart();
         }
@@ -428,18 +455,36 @@
         this._wire = null;
         return;
       }
+
+      // --- SHORT PRESS on component (no drag started) = select ---
+      var elapsed = Date.now() - this._pointerDownTime;
+      if (!this._pointerMoved && elapsed < this._longPressThreshold) {
+        var componentEl = e.target.closest('.sim-component');
+        if (componentEl) {
+          var cId = parseInt(componentEl.getAttribute('data-component-id'));
+          if (!isNaN(cId) && window.SimState && window.SimSelection) {
+            // Just select/deselect without drag
+            window.SimSelection.selectComponent(cId, e.ctrlKey || e.metaKey, window.SimState.getComponents());
+
+            var comp = window.SimState.getComponent(cId);
+            if (window.SimState.getSelectionCount() === 1 && comp) {
+              if (window.SimProperties) {
+                window.SimProperties.show(comp);
+              }
+            } else {
+              if (window.SimProperties) {
+                window.SimProperties.hide();
+              }
+            }
+          }
+        }
+      }
     },
 
     /* ======================================================================
        Wheel Handler (Zoom)
        ====================================================================== */
 
-    /**
-     * Handle wheel event for zooming
-     * Zooms toward the cursor position
-     * @private
-     * @param {WheelEvent} e
-     */
     _onWheel: function (e) {
       e.preventDefault();
 
@@ -468,17 +513,7 @@
        Keyboard Handler
        ====================================================================== */
 
-    /**
-     * Handle keyboard events
-     * Ctrl+Z = Undo
-     * Ctrl+Y = Redo
-     * Delete/Backspace = Delete selected
-     * Escape = Clear selection
-     * @private
-     * @param {KeyboardEvent} e
-     */
     _onKeyDown: function (e) {
-      // Don't handle if user is typing in an input
       var tag = document.activeElement ? document.activeElement.tagName : '';
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
@@ -499,7 +534,7 @@
         return;
       }
 
-      // Redo: Ctrl+Y or Ctrl+Shift+Z
+      // Redo: Ctrl+Y
       if ((ctrl && e.key === 'y') || (ctrl && e.key === 'z' && e.shiftKey)) {
         e.preventDefault();
         if (window.SimHistory && window.SimHistory.canRedo()) {
@@ -542,9 +577,9 @@
         if (window.SimProperties) {
           window.SimProperties.hide();
         }
-        // Cancel wire
         if (this._isWiring) {
           this._isWiring = false;
+          this._wireStarted = false;
           this._wire = null;
           if (window.SimWires) {
             window.SimWires.cancelConnection();
