@@ -1,36 +1,41 @@
 /* ==========================================================================
-   DrDer Electronic - Simulation Engine v4.0
-   Core engine that coordinates all simulator modules
+   DrDer Electronic Simulator 2.0
+   simulator-engine.js - Simulation Engine
+   
+   Responsibility:
+   - Build a graph from components and wires
+   - Run BFS/DFS to simulate power flow
+   - Determine which components are energized
+   - No DOM access, no rendering, pure logic
    ========================================================================== */
+
 (function () {
   'use strict';
 
+  /**
+   * SimEngine - The simulation engine
+   * Operates entirely on data from SimState
+   */
   window.SimEngine = {
-    _state: null,
-    _simulationActive: false,
-    _onStateChange: null,
 
-    /* ========================================================================
-       Initialize
-       ======================================================================== */
-    init: function (state) {
-      this._state = state;
-      this._simulationActive = false;
-    },
-
-    /* ========================================================================
-       Run simulation
-       ======================================================================== */
+    /**
+     * Run the simulation
+     * Validates the circuit, then simulates power flow
+     * @returns {Object} Result { success, message, conducting, warnings }
+     */
     run: function () {
-      if (!this._state || this._state.placedComponents.length === 0) {
+      var state = window.SimState;
+      if (!state) return { success: false, message: '⚠️ حالة النظام غير متاحة' };
+
+      var components = state.getComponents();
+      var wires = state.getWires();
+
+      if (components.length === 0) {
         return { success: false, message: '⚠️ لا توجد عناصر في الدائرة' };
       }
 
-      var validation = window.SimValidation.validate(
-        this._state.placedComponents,
-        window.SimWires.getConnections()
-      );
-
+      // Validate
+      var validation = window.SimValidation ? window.SimValidation.validate(components, wires) : { valid: true, issues: [], warnings: [] };
       if (!validation.valid) {
         return {
           success: false,
@@ -40,79 +45,301 @@
         };
       }
 
-      window.SimPower.resetAll(this._state.placedComponents);
+      // Reset all component states
+      state.resetComponentStates();
 
-      var result = window.SimPower.simulate(
-        this._state.placedComponents,
-        window.SimWires.getConnections()
-      );
+      // Build graph
+      var graph = this._buildGraph(components, wires);
 
-      window.SimPower.applyVisualFeedback(this._state.placedComponents, result.conducting);
+      // Find all source nodes
+      var sources = this._findSources(components);
 
-      window.SimWires.drawAllWires(true);
-
-      this._simulationActive = true;
-
-      if (this._onStateChange) {
-        this._onStateChange({ active: true, result: result });
+      if (sources.length === 0) {
+        return { success: false, message: '⚠️ لا يوجد مصدر طاقة في الدائرة' };
       }
 
-      var message = '⚡ تم تشغيل الدائرة بنجاح!';
-      if (validation.warnings && validation.warnings.length > 0) {
-        message += ' (مع ' + validation.warnings.length + ' ملاحظات)';
+      // Run BFS from each source to find energized components
+      var conducting = {};
+      var visited = {};
+
+      for (var s = 0; s < sources.length; s++) {
+        var source = sources[s];
+        this._bfs(source.id, graph, components, conducting, visited);
+      }
+
+      // Apply results to component states
+      this._applyResults(components, conducting);
+
+      // Update simulation state
+      state.setSimulationActive(true);
+
+      var loadCount = 0;
+      for (var id in conducting) {
+        if (conducting.hasOwnProperty(id)) {
+          var comp = state.getComponent(parseInt(id));
+          if (comp) {
+            var def = window.findComponentDef(comp.compId);
+            if (def && (def.type === 'load' || def.type === 'motor' || def.type === 'lighting')) {
+              loadCount++;
+            }
+          }
+        }
       }
 
       return {
         success: true,
-        message: message,
-        conducting: result.conducting,
-        voltageMap: result.voltageMap,
+        message: '⚡ تم تشغيل الدائرة بنجاح! (' + loadCount + ' أحمال نشطة)',
+        conducting: conducting,
         warnings: validation.warnings
       };
     },
 
-    /* ========================================================================
-       Stop simulation
-       ======================================================================== */
+    /**
+     * Stop the simulation and reset all states
+     * @returns {Object} Result { success, message }
+     */
     stop: function () {
-      if (!this._state) {
-        return { success: false, message: '⚠️ لا توجد حالة للمحاكاة' };
-      }
+      var state = window.SimState;
+      if (!state) return { success: false, message: '⚠️ حالة النظام غير متاحة' };
 
-      window.SimPower.resetAll(this._state.placedComponents);
-      window.SimPower.clearVisualFeedback(this._state.placedComponents);
-      window.SimWires.drawAllWires(false);
-
-      this._simulationActive = false;
-
-      if (this._onStateChange) {
-        this._onStateChange({ active: false, result: null });
-      }
+      state.resetComponentStates();
+      state.setSimulationActive(false);
 
       return { success: true, message: '⏹️ تم إيقاف المحاكاة' };
     },
 
-    /* ========================================================================
-       Toggle simulation
-       ======================================================================== */
+    /**
+     * Toggle simulation on/off
+     * @returns {Object} Result
+     */
     toggle: function () {
-      return this._simulationActive ? this.stop() : this.run();
+      var state = window.SimState;
+      return state && state.simulationActive ? this.stop() : this.run();
     },
 
-    /* ========================================================================
-       Check if simulation is active
-       ======================================================================== */
+    /**
+     * Check if simulation is active
+     * @returns {boolean}
+     */
     isActive: function () {
-      return this._simulationActive;
+      var state = window.SimState;
+      return state ? state.simulationActive : false;
     },
 
-    /* ========================================================================
-       Toggle a switch component
-       ======================================================================== */
-    toggleSwitch: function (componentId) {
-      if (!this._state) return;
+    /* ======================================================================
+       Graph Building
+       ====================================================================== */
 
-      var comp = this._getComponentById(componentId);
+    /**
+     * Build an adjacency graph from components and wires
+     * Each node is a component ID
+     * Each edge is a connection between terminals
+     * @private
+     * @param {Array} components - All components
+     * @param {Array} wires - All wires
+     * @returns {Object} Adjacency list { compId: [neighborId, ...] }
+     */
+    _buildGraph: function (components, wires) {
+      var graph = {};
+
+      // Initialize all nodes
+      for (var i = 0; i < components.length; i++) {
+        graph[components[i].id] = [];
+      }
+
+      // Add edges from wires
+      for (var w = 0; w < wires.length; w++) {
+        var wire = wires[w];
+        if (!graph[wire.fromCompId]) graph[wire.fromCompId] = [];
+        if (!graph[wire.toCompId]) graph[wire.toCompId] = [];
+
+        graph[wire.fromCompId].push(wire.toCompId);
+        graph[wire.toCompId].push(wire.fromCompId);
+      }
+
+      return graph;
+    },
+
+    /**
+     * Find all power source components
+     * @private
+     * @param {Array} components - All components
+     * @returns {Array} Array of source components
+     */
+    _findSources: function (components) {
+      var sources = [];
+      for (var i = 0; i < components.length; i++) {
+        var def = window.findComponentDef(components[i].compId);
+        if (def && def.type === 'source') {
+          sources.push(components[i]);
+        }
+      }
+      return sources;
+    },
+
+    /* ======================================================================
+       BFS Traversal
+       ====================================================================== */
+
+    /**
+     * Breadth-First Search from a source to find all energized components
+     * Respects switch states, protection states, and component conductivity
+     * @private
+     * @param {number} startId - Starting component ID
+     * @param {Object} graph - Adjacency graph
+     * @param {Array} components - All components
+     * @param {Object} conducting - Output: set of energized component IDs
+     * @param {Object} visited - Internal: visited nodes
+     */
+    _bfs: function (startId, graph, components, conducting, visited) {
+      var queue = [startId];
+      visited[startId] = true;
+      conducting[startId] = true;
+
+      while (queue.length > 0) {
+        var currentId = queue.shift();
+        var neighbors = graph[currentId];
+
+        if (!neighbors) continue;
+
+        for (var n = 0; n < neighbors.length; n++) {
+          var neighborId = neighbors[n];
+
+          if (visited[neighborId]) continue;
+
+          // Check if current component allows flow through
+          var currentComp = this._getComponentById(components, currentId);
+          if (currentComp && !this._allowsFlow(currentComp, currentId, neighborId)) {
+            continue;
+          }
+
+          visited[neighborId] = true;
+          conducting[neighborId] = true;
+          queue.push(neighborId);
+        }
+      }
+    },
+
+    /**
+     * Check if a component allows current to flow through it
+     * @private
+     * @param {Object} comp - The component
+     * @param {number} fromId - Source component ID (unused, kept for future)
+     * @param {number} toId - Target component ID (unused, kept for future)
+     * @returns {boolean} True if current can flow
+     */
+    _allowsFlow: function (comp, fromId, toId) {
+      var def = window.findComponentDef(comp.compId);
+      if (!def) return true;
+
+      // Source: always allows flow out
+      if (def.type === 'source') return true;
+
+      // Switch: depends on state
+      if (def.type === 'switch') {
+        if (def.subtype === 'push_no' || def.subtype === 'limit' || def.subtype === 'spst') {
+          return comp.compState && comp.compState.closed;
+        }
+        if (def.subtype === 'push_nc' || def.subtype === 'emergency') {
+          return !(comp.compState && comp.compState.pressed);
+        }
+        if (def.subtype === 'spdt' || def.subtype === 'selector') {
+          return comp.compState && comp.compState.closed;
+        }
+        return comp.compState && comp.compState.closed;
+      }
+
+      // Protection: allows flow unless tripped
+      if (def.type === 'protection') {
+        return !(comp.compState && comp.compState.tripped);
+      }
+
+      // Relay/Contactor: allows flow if energized
+      if (def.type === 'relay' || def.type === 'contactor') {
+        if (def.subtype === 'timer_on') {
+          return comp.compState && comp.compState.timerElapsed;
+        }
+        if (def.subtype === 'timer_off') {
+          return !(comp.compState && comp.compState.timerElapsed);
+        }
+        return comp.compState && comp.compState.energized;
+      }
+
+      // Semiconductor: diode allows one direction
+      if (def.type === 'semiconductor') {
+        if (def.subtype === 'diode' || def.subtype === 'zener') {
+          return true; // Simplified: always allows in forward direction
+        }
+        return true;
+      }
+
+      // Loads, motors, passive, measurement, transformers, terminals: allow flow
+      return true;
+    },
+
+    /**
+     * Get component by ID from array
+     * @private
+     * @param {Array} components - Components array
+     * @param {number} id - Component ID
+     * @returns {Object|null}
+     */
+    _getComponentById: function (components, id) {
+      for (var i = 0; i < components.length; i++) {
+        if (components[i].id === id) return components[i];
+      }
+      return null;
+    },
+
+    /* ======================================================================
+       Apply Results
+       ====================================================================== */
+
+    /**
+     * Apply simulation results to component states
+     * @private
+     * @param {Array} components - All components
+     * @param {Object} conducting - Set of energized component IDs
+     */
+    _applyResults: function (components, conducting) {
+      for (var i = 0; i < components.length; i++) {
+        var comp = components[i];
+        var def = window.findComponentDef(comp.compId);
+
+        if (conducting[comp.id]) {
+          comp.compState.energized = true;
+
+          // Loads and motors become active
+          if (def && (def.type === 'load' || def.type === 'motor')) {
+            comp.compState.active = true;
+          }
+
+          // Relays and contactors energize
+          if (def && (def.type === 'relay' || def.type === 'contactor')) {
+            comp.compState.energized = true;
+          }
+
+          // LEDs and lamps glow
+          if (def && (def.subtype === 'led' || def.subtype === 'lamp' || def.subtype === 'indicator')) {
+            comp.compState.active = true;
+          }
+        }
+      }
+    },
+
+    /* ======================================================================
+       Toggle Switch
+       ====================================================================== */
+
+    /**
+     * Toggle a switch component (open/close)
+     * @param {number} compId - Component ID
+     */
+    toggleSwitch: function (compId) {
+      var state = window.SimState;
+      if (!state) return;
+
+      var comp = state.getComponent(compId);
       if (!comp) return;
 
       var def = window.findComponentDef(comp.compId);
@@ -121,26 +348,26 @@
       if (!comp.compState) comp.compState = {};
       comp.compState.closed = !comp.compState.closed;
 
+      // Visual feedback
       if (comp.el) {
-        if (comp.compState.closed) {
-          comp.el.style.borderColor = '#3fb950';
-        } else {
-          comp.el.style.borderColor = def.color || 'var(--accent)';
-        }
+        comp.el.style.borderColor = comp.compState.closed ? '#3fb950' : (def.color || '#00e5ff');
       }
 
-      if (this._simulationActive) {
+      // Re-run if simulation active
+      if (state.simulationActive) {
         this.run();
       }
     },
 
-    /* ========================================================================
-       Push a button (momentary)
-       ======================================================================== */
-    pushButton: function (componentId) {
-      if (!this._state) return;
+    /**
+     * Push a momentary button (press and release after delay)
+     * @param {number} compId - Component ID
+     */
+    pushButton: function (compId) {
+      var state = window.SimState;
+      if (!state) return;
 
-      var comp = this._getComponentById(componentId);
+      var comp = state.getComponent(compId);
       if (!comp) return;
 
       var def = window.findComponentDef(comp.compId);
@@ -150,152 +377,17 @@
       if (!comp.compState) comp.compState = {};
       comp.compState.pressed = true;
 
-      if (comp.el) {
-        comp.el.style.borderColor = '#3fb950';
-      }
+      if (comp.el) comp.el.style.borderColor = '#3fb950';
 
-      if (this._simulationActive) {
-        this.run();
-      }
+      if (state.simulationActive) this.run();
 
       var self = this;
       setTimeout(function () {
         comp.compState.pressed = false;
-        if (comp.el) {
-          comp.el.style.borderColor = def.color || 'var(--accent)';
-        }
-        if (self._simulationActive) {
-          self.run();
-        }
+        if (comp.el) comp.el.style.borderColor = def.color || '#00e5ff';
+        if (state.simulationActive) self.run();
       }, 500);
-    },
-
-    /* ========================================================================
-       Get component by ID
-       ======================================================================== */
-    _getComponentById: function (id) {
-      if (!this._state || !this._state.placedComponents) return null;
-      for (var i = 0; i < this._state.placedComponents.length; i++) {
-        if (this._state.placedComponents[i].id === id) {
-          return this._state.placedComponents[i];
-        }
-      }
-      return null;
-    },
-
-    /* ========================================================================
-       Get current state snapshot for undo
-       ======================================================================== */
-    getStateSnapshot: function () {
-      if (!this._state) return { comps: [], conns: [], cid: 0 };
-
-      var comps = [];
-      for (var i = 0; i < this._state.placedComponents.length; i++) {
-        var c = this._state.placedComponents[i];
-        comps.push({
-          id: c.id,
-          compId: c.compId,
-          x: c.x,
-          y: c.y,
-          properties: window.SimUtils ? window.SimUtils.clone(c.properties) : c.properties,
-          rotation: c.rotation || 0
-        });
-      }
-
-      return {
-        comps: comps,
-        conns: window.SimUtils ? window.SimUtils.clone(window.SimWires.getConnections()) : window.SimWires.getConnections(),
-        cid: this._state.componentIdCounter
-      };
-    },
-
-    /* ========================================================================
-       Restore state from snapshot
-       ======================================================================== */
-    restoreSnapshot: function (snapshot) {
-      if (!snapshot || !this._state) return;
-
-      var canvas = document.getElementById('simCanvas');
-
-      this._state.placedComponents = [];
-      this._state.componentIdCounter = snapshot.cid || 0;
-      window.SimWires.clearAll();
-
-      for (var i = 0; i < snapshot.comps.length; i++) {
-        var cd = snapshot.comps[i];
-        var def = window.findComponentDef(cd.compId);
-        if (!def) continue;
-
-        var id = cd.id;
-        var el = document.createElement('div');
-        el.className = 'sim-component';
-        el.id = 'comp-' + id;
-        el.dataset.componentId = id;
-        el.dataset.compType = cd.compId;
-        el.style.left = cd.x + 'px';
-        el.style.top = cd.y + 'px';
-
-        var deleteBtn = document.createElement('button');
-        deleteBtn.className = 'sim-comp-delete';
-        deleteBtn.title = 'حذف';
-        deleteBtn.textContent = '✕';
-        el.appendChild(deleteBtn);
-
-        var icon = document.createElement('span');
-        icon.className = 'sim-comp-icon';
-        icon.textContent = def.icon;
-        el.appendChild(icon);
-
-        var label = document.createElement('span');
-        label.className = 'sim-comp-label';
-        label.textContent = def.name;
-        el.appendChild(label);
-
-        var badge = document.createElement('span');
-        badge.className = 'sim-comp-badge';
-        badge.textContent = id;
-        el.appendChild(badge);
-
-        if (cd.rotation) {
-          el.style.transform = 'rotate(' + cd.rotation + 'deg)';
-        }
-
-        var positions = window.getTerminalPositions(def.terminals || 2);
-        for (var j = 0; j < positions.length; j++) {
-          var pos = positions[j];
-          var term = document.createElement('div');
-          term.className = 'sim-terminal';
-          term.style.left = pos.x + '%';
-          term.style.top = pos.y + '%';
-          term.dataset.componentId = id;
-          term.dataset.terminalIndex = j;
-          el.appendChild(term);
-        }
-
-        if (canvas) canvas.appendChild(el);
-
-        this._state.placedComponents.push({
-          id: id,
-          compId: cd.compId,
-          el: el,
-          x: cd.x,
-          y: cd.y,
-          properties: cd.properties ? window.SimUtils.clone(cd.properties) : {},
-          rotation: cd.rotation || 0,
-          compState: { active: false, energized: false, closed: false }
-        });
-      }
-
-      this._state.componentIdCounter = snapshot.cid || 0;
-      window.SimWires.setConnections(snapshot.conns);
-      window.SimWires.drawAllWires(false);
-    },
-
-    /* ========================================================================
-       Callback for state changes
-       ======================================================================== */
-    onStateChange: function (cb) {
-      this._onStateChange = cb;
     }
   };
+
 })();
