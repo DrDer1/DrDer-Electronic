@@ -1,6 +1,11 @@
 /* ==========================================================================
-   DrDer Electronic - Simulator Styles v4.0
-   Professional Circuit Simulator - Dark Theme
+   DrDer Electronic Simulator 2.0
+   simulator.css - Complete Simulator Styles
+   
+   Responsibility:
+   - All styles for the simulator interface
+   - Dark theme, RTL support
+   - Component library, canvas, toolbar, properties panel
    ========================================================================== */
 
 /* ========== Full Container ========== */
@@ -156,7 +161,7 @@
   min-width: 0;
 }
 
-/* ========== Top Toolbar ========== */
+/* ========== Toolbar ========== */
 .sim-toolbar {
   display: flex;
   align-items: center;
@@ -250,6 +255,7 @@
   inset: 0;
   overflow: hidden;
   cursor: default;
+  touch-action: none;
 }
 
 .sim-canvas-area:focus {
@@ -276,7 +282,7 @@
   z-index: 2;
 }
 
-.sim-wires-svg .sim-wire-path {
+.sim-wire-path {
   pointer-events: stroke;
   cursor: pointer;
   transition: stroke 0.1s ease, stroke-width 0.1s ease;
@@ -285,14 +291,14 @@
   stroke-linejoin: round;
 }
 
-.sim-wires-svg .sim-wire-path:hover {
+.sim-wire-path:hover {
   stroke: var(--danger) !important;
-  stroke-width: 4;
+  stroke-width: 4 !important;
 }
 
-.sim-wires-svg .sim-wire-path.selected {
+.sim-wire-path.selected {
   stroke: var(--info) !important;
-  stroke-width: 4;
+  stroke-width: 4 !important;
   filter: drop-shadow(0 0 4px rgba(88, 166, 255, 0.5));
 }
 
@@ -305,49 +311,29 @@
   justify-content: center;
   pointer-events: none;
   z-index: 1;
-}
-
-.placeholder-content {
-  text-align: center;
   color: var(--text-muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.placeholder-icon {
-  font-size: 3rem;
-  opacity: 0.4;
-}
-
-.placeholder-text {
-  font-size: 0.95rem;
-}
-
-.placeholder-hint {
-  font-size: 0.72rem;
-  opacity: 0.5;
+  text-align: center;
 }
 
 /* ========== Placed Components ========== */
 .sim-component {
   position: absolute;
   background: var(--bg-tertiary);
-  border: 2px solid var(--accent);
-  border-radius: var(--radius-xs);
-  padding: 6px 8px;
+  border: 2px solid #00e5ff;
+  border-radius: 4px;
+  padding: 8px 10px;
   min-width: 70px;
   text-align: center;
-  cursor: move;
+  cursor: grab;
   user-select: none;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   transition: box-shadow 0.12s ease;
-  will-change: left, top;
+  will-change: left, top, transform;
+  touch-action: none;
 }
 
 .sim-component:hover {
@@ -355,7 +341,7 @@
 }
 
 .sim-component.selected {
-  border-color: #fff !important;
+  border-color: #ffffff !important;
   box-shadow: 0 0 18px rgba(255, 255, 255, 0.2);
   z-index: 15;
 }
@@ -363,7 +349,7 @@
 .sim-component.simulating {
   box-shadow: 0 0 18px rgba(63, 185, 80, 0.6) !important;
   border-color: var(--success) !important;
-  animation: sim-comp-glow 0.8s ease-in-out infinite alternate;
+  animation: sim-glow 0.8s ease-in-out infinite alternate;
 }
 
 .sim-component.energized {
@@ -371,12 +357,7 @@
   border-color: var(--warning) !important;
 }
 
-.sim-component.fault {
-  box-shadow: 0 0 18px rgba(248, 81, 73, 0.6) !important;
-  border-color: var(--danger) !important;
-}
-
-@keyframes sim-comp-glow {
+@keyframes sim-glow {
   from { box-shadow: 0 0 10px rgba(63, 185, 80, 0.4); }
   to { box-shadow: 0 0 24px rgba(63, 185, 80, 0.8); }
 }
@@ -384,6 +365,7 @@
 .sim-comp-icon {
   font-size: 1.3rem;
   display: block;
+  pointer-events: none;
 }
 
 .sim-comp-label {
@@ -394,13 +376,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .sim-comp-badge {
   position: absolute;
   top: -9px;
   right: -5px;
-  background: var(--accent);
+  background: #00e5ff;
   color: #000;
   font-size: 0.55rem;
   font-weight: 700;
@@ -411,6 +394,7 @@
   align-items: center;
   justify-content: center;
   z-index: 6;
+  pointer-events: none;
 }
 
 .sim-comp-delete {
@@ -428,7 +412,7 @@
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 6;
+  z-index: 20;
   padding: 0;
   line-height: 1;
 }
@@ -445,20 +429,21 @@
 /* ========== Connection Terminals ========== */
 .sim-terminal {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  background: var(--accent);
+  width: 12px;
+  height: 12px;
+  background: #00e5ff;
   border: 2px solid var(--bg-primary);
   border-radius: 50%;
-  z-index: 7;
+  z-index: 15;
   cursor: crosshair;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
+  touch-action: none;
 }
 
 .sim-terminal:hover {
   transform: translate(-50%, -50%) scale(1.6) !important;
   box-shadow: 0 0 8px var(--accent-glow);
-  background: #fff;
+  background: #ffffff;
 }
 
 /* ========== Right Panel - Properties ========== */
@@ -578,16 +563,35 @@
   flex-shrink: 0;
 }
 
-.sim-feedback-msg.success { border-color: var(--success); background: var(--success-dim); color: var(--success); }
-.sim-feedback-msg.error { border-color: var(--danger); background: var(--danger-dim); color: var(--danger); }
-.sim-feedback-msg.warning { border-color: var(--warning); background: var(--warning-dim); color: var(--warning); }
-.sim-feedback-msg.info { border-color: var(--info); background: var(--info-dim); color: var(--info); }
+.sim-feedback-msg.success {
+  border-color: var(--success);
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+.sim-feedback-msg.error {
+  border-color: var(--danger);
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.sim-feedback-msg.warning {
+  border-color: var(--warning);
+  background: var(--warning-dim);
+  color: var(--warning);
+}
+
+.sim-feedback-msg.info {
+  border-color: var(--info);
+  background: var(--info-dim);
+  color: var(--info);
+}
 
 /* ========== Buttons ========== */
 .btn-icon-sm {
   width: 26px;
   height: 26px;
-  border-radius: var(--radius-full);
+  border-radius: 50%;
   border: 1px solid var(--border-color);
   background: transparent;
   color: var(--text-secondary);
